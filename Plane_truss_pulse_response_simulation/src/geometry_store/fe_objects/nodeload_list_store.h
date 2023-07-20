@@ -4,8 +4,7 @@
 struct load_data
 {
 	int load_id = 0; // Load id
-	int line_id = 0; // id of the line its applied to
-	double load_loc_param = 0.0; // Load location to param 0 to 1
+	int node_id = 0; // id of the line its applied to
 	glm::vec2 load_loc = glm::vec2(0); // Load location
 	double load_start_time = 0.0; // Load start time
 	double load_end_time = 0.0; // Load end time
@@ -22,9 +21,8 @@ public:
 	nodeload_list_store();
 	~nodeload_list_store();
 	void init(geom_parameters* geom_param_ptr);
-	void add_load(int& line_id, double load_loc_param, glm::vec2 load_loc,
-		double& load_start_time, double& load_end_time, double& load_value, double& load_angle);
-	void delete_load(int& line_id);
+	void add_load(int& node_id, glm::vec2& load_loc, double& load_start_time, double& load_end_time, double& load_value, double& load_angle);
+	void delete_load(int& node_id);
 	void set_buffer();
 	void paint_loads();
 	void paint_load_labels();

@@ -352,9 +352,9 @@ void pulse_analysis_solver::get_element_stiffness_matrix(Eigen::MatrixXd& elemen
 	local_element_stiffness_matrix.setZero();
 
 	double k1 = (elementline_material.youngs_mod * elementline_material.cs_area) / eLength;
-	double k2 = (elementline_material.youngs_mod * elementline_material.second_moment_of_area) / (eLength * eLength * eLength);
-	double k3 = (elementline_material.youngs_mod * elementline_material.second_moment_of_area) / (eLength * eLength);
-	double k4 = (elementline_material.youngs_mod * elementline_material.second_moment_of_area) / eLength;
+	double k2 = (1.0) / (eLength * eLength * eLength);
+	double k3 = (1.0) / (eLength * eLength);
+	double k4 = (1.0) / eLength;
 
 	local_element_stiffness_matrix.row(0) = Eigen::RowVectorXd({ {k1, 0.0, 0.0, -1.0 * k1, 0.0, 0.0} });
 	local_element_stiffness_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 12.0 * k2, 6.0 * k3, 0.0, -12.0 * k2, 6.0 * k3} });
@@ -865,7 +865,7 @@ void pulse_analysis_solver::create_pulse_load_matrices(pulse_load_data& pulse_lo
 {
 	// Create the global load amplitude matrix
 	// Extract the line in which the load is applied
-	elementline_store ln = model_lineelements.elementlineMap.at(ld.line_id);
+	elementline_store ln = model_lineelements.elementlineMap.at(ld.node_id);
 
 	// Get the Matrix row ID
 	int sn_id = nodeid_map[ln.startNode->node_id]; // get the ordered map of the start node ID
@@ -950,16 +950,16 @@ void pulse_analysis_solver::get_element_load_matrix(Eigen::MatrixXd& elementLoad
 	double loadHorizontal = (-f_x * Lcos) + (f_y * Msin);
 	double loadVertical = (f_x * Msin) + (f_y * Lcos);
 
-	double a = eLength * ld.load_loc_param;
-	double b = eLength * (1.0 - ld.load_loc_param);
+	double a = eLength *0.0;
+	double b = eLength * 0.0;
 
 	// Load parameter
 	double phi_i = (loadVertical * b * (std::pow(eLength, 2) - std::pow(b, 2)) / (6 * eLength));
 	double phi_j = (loadVertical * a * (std::pow(eLength, 2) - std::pow(a, 2)) / (6 * eLength));
 
 	// Axial Load
-	double Tai = loadHorizontal * ld.load_loc_param;
-	double Taj = loadHorizontal * (1 - ld.load_loc_param);
+	double Tai = loadHorizontal *0.0;
+	double Taj = loadHorizontal * (1 - 0.0);
 
 	// End Moments
 	double Tmi = (((4 * phi_i) - (2 * phi_j)) / eLength);

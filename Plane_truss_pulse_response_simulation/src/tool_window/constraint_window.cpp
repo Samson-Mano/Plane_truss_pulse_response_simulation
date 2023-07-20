@@ -30,9 +30,8 @@ void constraint_window::render_window()
 	// Add constraint input controls
 // Option to select the types of support
 // Define an array of options
-	const int options_count = 4;
-	const char* options[] = { "Fixed end support", "Fixed roller support",
-							  "Pin end support", "Pin roller support" };
+	const int options_count = 2;
+	const char* options[] = { "Pin end support", "Pin roller support" };
 
 	// Define a string to hold the label for the popup select button
 	std::string popupLabel = "Support: ";
@@ -183,29 +182,13 @@ void constraint_window::draw_support()
 
 			if (constraint_type == 0)
 			{
-				// Draw fixed support
-				uv_top_left = ImVec2(0.0f, 0.5f);
-				uv_top_right = ImVec2(0.5f, 0.5f);
-				uv_bot_right = ImVec2(0.5f, 1.0f);
-				uv_bot_left = ImVec2(0.0f, 1.0f);
-			}
-			else if (constraint_type == 1)
-			{
-				// Draw fixed roller support
-				uv_top_left = ImVec2(0.5f, 0.5f);
-				uv_top_right = ImVec2(1.0f, 0.5f);
-				uv_bot_right = ImVec2(1.0f, 1.0f);
-				uv_bot_left = ImVec2(0.5f, 1.0f);
-			}
-			else if (constraint_type == 2)
-			{
 				// Draw pin support
 				uv_top_left = ImVec2(0.0f, 0.0f);
 				uv_top_right = ImVec2(0.5f, 0.0f);
 				uv_bot_right = ImVec2(0.5f, 0.5f);
 				uv_bot_left = ImVec2(0.0f, 0.5f);
 			}
-			else if (constraint_type == 3)
+			else if (constraint_type == 1)
 			{
 				// Draw pin roller support
 				uv_top_left = ImVec2(0.5f, 0.0f);

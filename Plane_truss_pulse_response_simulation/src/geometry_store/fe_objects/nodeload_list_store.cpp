@@ -30,13 +30,12 @@ void nodeload_list_store::init(geom_parameters* geom_param_ptr)
 	all_load_ids.clear();
 }
 
-void nodeload_list_store::add_load(int& line_id, double load_loc_param, glm::vec2 load_loc,
-	double& load_start_time, double& load_end_time, double& load_value, double& load_angle)
+void nodeload_list_store::add_load(int& node_id, glm::vec2& load_loc, double& load_start_time, double& load_end_time,
+	double& load_value, double& load_angle)
 {
 	load_data temp_load;
 	temp_load.load_id = get_unique_load_id(); // Load id
-	temp_load.line_id = line_id; // id of the line its applied to
-	temp_load.load_loc_param = load_loc_param; // Load location to param 0 to 1
+	temp_load.node_id = node_id; // id of the line its applied to
 	temp_load.load_loc = load_loc; // Load location
 	temp_load.load_start_time = load_start_time; // Load start time
 	temp_load.load_end_time = load_end_time; // Load end time
@@ -49,17 +48,17 @@ void nodeload_list_store::add_load(int& line_id, double load_loc_param, glm::vec
 	load_count++;
 }
 
-void nodeload_list_store::delete_load(int& line_id)
+void nodeload_list_store::delete_load(int& node_id)
 {
-	// Delete all the loads in the line
+	// Delete all the loads in the node
 	std::vector<int> delete_load_id;
 
 	for (auto& ldx : loadMap)
 	{
 		load_data ld = ldx.second;
 
-		// Check whether the load's lineID is the lineID
-		if (ld.line_id == line_id)
+		// Check whether the load's nodeID is the nodeID
+		if (ld.node_id == node_id)
 		{
 			// Add to the delete load ID
 			delete_load_id.push_back(ld.load_id);

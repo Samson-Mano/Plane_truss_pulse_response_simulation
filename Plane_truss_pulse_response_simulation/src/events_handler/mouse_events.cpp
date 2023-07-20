@@ -119,7 +119,7 @@ void mouse_events::left_mouse_click(glm::vec2& loc)
 	if ((ld_window->is_add_load) == true)
 	{
 		// Add Loads
-		geom->set_member_load(loc,ld_window->load_param,ld_window->load_start_time,ld_window->load_end_time,
+		geom->set_member_load(loc,ld_window->load_start_time,ld_window->load_end_time,
 			ld_window->load_amplitude,ld_window->load_angle, true);
 	}
 
@@ -161,7 +161,7 @@ void mouse_events::right_mouse_click(glm::vec2& loc)
 	if ((ld_window->is_add_load) == true)
 	{
 		// Remove Loads
-		geom->set_member_load(loc, ld_window->load_param, ld_window->load_start_time, ld_window->load_end_time,
+		geom->set_member_load(loc, ld_window->load_start_time, ld_window->load_end_time,
 			ld_window->load_amplitude, ld_window->load_angle, false);
 	}
 

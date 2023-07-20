@@ -67,7 +67,7 @@ public:
 
 	// Function to add/ remove loads, constraints, lumped mass and material properties
 	void set_nodal_constraint(glm::vec2 mouse_click_loc, int& constraint_type, double& constraint_angle, bool is_add);
-	void set_member_load(glm::vec2 mouse_click_loc, double& load_param, double& load_start_time, double& load_end_time,
+	void set_member_load(glm::vec2 mouse_click_loc, double& load_start_time, double& load_end_time,
 		double& load_value, double& load_angle, bool is_add);
 	void set_elementline_material(glm::vec2 mouse_click_loc);
 	void set_nodal_pointmass(glm::vec2 mouse_click_loc, double& pt_mass_x, double& pt_mass_y, 

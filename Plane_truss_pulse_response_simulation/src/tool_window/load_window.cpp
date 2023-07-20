@@ -160,52 +160,6 @@ void load_window::render_window()
 
 	//_________________________________________________________________________________________
 	// Input box to give input via text
-	static bool ldinput_mode = false;
-	static char ldratio_str[16] = ""; // buffer to store input angle string
-	static float ld_ratio = static_cast<float>(load_param); // buffer to store input angle value
-
-	// Button to switch to input mode
-	if (!ldinput_mode)
-	{
-		if (ImGui::Button("Length Parameter"))
-		{
-			ldinput_mode = true;
-			snprintf(ldratio_str, 16, "%.2f", ld_ratio); // set the buffer to current angle
-		}
-	}
-	else // input mode
-	{
-		// Text box to input angle value
-		ImGui::SetNextItemWidth(60.0f);
-		if (ImGui::InputText("##LengthParam", ldratio_str, IM_ARRAYSIZE(ldratio_str), ImGuiInputTextFlags_CharsDecimal))
-		{
-			// convert the input string to float
-			ld_ratio = static_cast<float>(atof(ldratio_str));
-			// limit the value to 0 - 1.0 range
-			ld_ratio = fmaxf(0.0f, fminf(ld_ratio, 1.0f));
-			// set the angle to input value
-			load_param = ld_ratio;
-		}
-
-		// Button to switch back to slider mode
-		ImGui::SameLine();
-		if (ImGui::Button("OK"))
-		{
-			ldinput_mode = false;
-		}
-	}
-
-	// Slider for angle
-	ld_ratio = static_cast<float>(load_param);
-
-	ImGui::Text("Length Parameter");
-	ImGui::SameLine();
-	ImGui::SliderFloat("0 - 1 parameter", &ld_ratio, 0.0f, 1.0f, "%.2f");
-
-	load_param = ld_ratio;
-
-	//_________________________________________________________________________________________
-	// Input box to give input via text
 	static bool input_mode = false;
 	static char angle_str[8] = ""; // buffer to store input angle string
 	static float angle_input = static_cast<float>(load_angle); // buffer to store input angle value

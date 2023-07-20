@@ -386,9 +386,9 @@ void modal_analysis_solver::get_element_stiffness_matrix(Eigen::MatrixXd& elemen
 	local_element_stiffness_matrix.setZero();
 
 	double k1 = (elementline_material.youngs_mod * elementline_material.cs_area) / eLength;
-	double k2 = (elementline_material.youngs_mod * elementline_material.second_moment_of_area) / (eLength * eLength * eLength);
-	double k3 = (elementline_material.youngs_mod * elementline_material.second_moment_of_area) / (eLength * eLength);
-	double k4 = (elementline_material.youngs_mod * elementline_material.second_moment_of_area) / eLength;
+	double k2 = (1.0) / (eLength * eLength * eLength);
+	double k3 = (1.0) / (eLength * eLength);
+	double k4 = (1.0) / eLength;
 
 	local_element_stiffness_matrix.row(0) = Eigen::RowVectorXd({ {k1, 0.0, 0.0, -1.0 * k1, 0.0, 0.0} });
 	local_element_stiffness_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 12.0 * k2, 6.0 * k3, 0.0, -12.0 * k2, 6.0 * k3} });

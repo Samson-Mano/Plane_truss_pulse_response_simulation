@@ -184,29 +184,13 @@ void nodeconstraint_list_store::get_constraint_buffer(constraint_data& qt, float
 	// Depends on the constrint type get the Texture Coordinate
 	if (qt.constraint_type == 0)
 	{
-		// Draw fixed support
-		tex_coord_topleft = glm::vec2(0.0, 0.5);
-		tex_coord_topright = glm::vec2(0.5, 0.5);
-		tex_coord_botright = glm::vec2(0.5, 1.0);
-		tex_coord_botleft = glm::vec2(0.0, 1.0);
-	}
-	else if (qt.constraint_type == 1)
-	{
-		// Draw fixed roller support
-		tex_coord_topleft = glm::vec2(0.5, 0.5);
-		tex_coord_topright = glm::vec2(1.0, 0.5);
-		tex_coord_botright = glm::vec2(1.0, 1.0);
-		tex_coord_botleft = glm::vec2(0.5, 1.0);
-	}
-	else if (qt.constraint_type == 2)
-	{
 		// Draw pin support
 		tex_coord_topleft = glm::vec2(0.0, 0.0);
 		tex_coord_topright = glm::vec2(0.5, 0.0);
 		tex_coord_botright = glm::vec2(0.5, 0.5);
 		tex_coord_botleft = glm::vec2(0.0, 0.5);
 	}
-	else if (qt.constraint_type == 3)
+	else if (qt.constraint_type == 1)
 	{
 		// Draw pin roller support
 		tex_coord_topleft = glm::vec2(0.5, 0.0);

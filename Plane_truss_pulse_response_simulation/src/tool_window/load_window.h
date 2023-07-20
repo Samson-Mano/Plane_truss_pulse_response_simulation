@@ -25,7 +25,6 @@ public:
 	bool is_add_load = false;
 
 	double load_amplitude = 100.0; // load value
-	double load_param = 0.5; // Load parameter 
 	double load_start_time = 0.2;
 	double load_end_time = 0.6;
 	double load_angle = 90.0; // load angle

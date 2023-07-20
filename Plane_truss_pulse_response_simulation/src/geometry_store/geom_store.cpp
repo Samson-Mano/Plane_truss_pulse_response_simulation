@@ -69,7 +69,6 @@ void geom_store::read_varai2d(std::ifstream& input_file)
 
 	int j = 0, i = 0;
 
-
 	// Create a temporary variable to store the nodes
 	nodes_list_store model_nodes;
 	model_nodes.init(&geom_param);
@@ -207,8 +206,7 @@ void geom_store::read_dxfdata(std::ostringstream& input_data)
 	}
 
 	int j = 0, i = 0;
-
-
+	
 	// Create a temporary variable to store the nodes
 	nodes_list_store model_nodes;
 	model_nodes.init(&geom_param);
@@ -385,17 +383,18 @@ void geom_store::read_rawdata(std::ifstream& input_file)
 		}
 		else if (type == "load")
 		{
-			int load_ln_id = std::stoi(fields[1]); // load line ID
+			int load_nd_id = std::stoi(fields[1]); // load node ID
 			double load_val = std::stod(fields[2]); // load value
 			double load_angle = std::stod(fields[3]); // load angle
 			double load_start_time = std::stod(fields[4]); // load start time
 			double load_end_time = std::stod(fields[5]); // load end time
-			double load_loc_param = std::stod(fields[6]); // load location parameter
-			double load_loc_x = std::stod(fields[7]); // load loc x
-			double load_loc_y = std::stod(fields[8]); // load loc y
+			double load_loc_x = std::stod(fields[6]); // load loc x
+			double load_loc_y = std::stod(fields[7]); // load loc y
+
+			glm::vec2 load_loc = glm::vec2(load_loc_x, load_loc_y);
 
 			// Add to load map
-			model_loads.add_load(load_ln_id, load_loc_param, glm::vec2(load_loc_x, load_loc_y), load_start_time, load_end_time, load_val, load_angle);
+			model_loads.add_load(load_nd_id, load_loc, load_start_time, load_end_time, load_val, load_angle);
 		}
 		else if (type == "ptms")
 		{
@@ -486,12 +485,11 @@ void geom_store::write_rawdata(std::ofstream& output_file)
 		load_data ld_val = ld.second;
 
 		output_file << "load, "
-			<< ld_val.line_id << ", "  // load line ID
+			<< ld_val.node_id << ", "  // load node ID
 			<< ld_val.load_value << ", " // load value
 			<< ld_val.load_angle << ", " // load angle
 			<< ld_val.load_start_time << ", " // load start time
 			<< ld_val.load_end_time << ", " // load end time
-			<< ld_val.load_loc_param << ", " // load location parameter
 			<< ld_val.load_loc.x << ", " // load loc x
 			<< ld_val.load_loc.y << std::endl; // load loc y
 	}
@@ -712,35 +710,32 @@ void geom_store::set_nodal_constraint(glm::vec2 mouse_click_loc, int& constraint
 	}
 }
 
-void geom_store::set_member_load(glm::vec2 mouse_click_loc, double& load_param, double& load_start_time, double& load_end_time,
+void geom_store::set_member_load(glm::vec2 mouse_click_loc, double& load_start_time, double& load_end_time,
 	double& load_value, double& load_angle, bool is_add)
 {
-	int line_hit_id = -1;
+	int node_hit_id = -1;
 
 	if (is_geometry_set == true)
 	{
-		// geometry is set so check whether line is hit
-		line_hit_id = model_lineelements.is_line_hit(mouse_click_loc);
+		// Check whether the node is hit or not
+		node_hit_id = model_nodes.is_node_hit(mouse_click_loc);;
 
-		if (line_hit_id != -1)
+		if (node_hit_id != -1)
 		{
-			// line is hit
+			// node is hit
 			if (is_add == true)
 			{
-				// Get the location of the load
-				glm::vec2 start_pt = model_lineelements.elementlineMap[line_hit_id].startNode->node_pt;
-				glm::vec2 end_pt = model_lineelements.elementlineMap[line_hit_id].endNode->node_pt;
-
-				glm::vec2 load_loc = start_pt * (1 - static_cast<float>(load_param)) + end_pt * (static_cast<float>(load_param));
+				// Get the location of the load (node)
+				glm::vec2 load_loc = model_nodes.nodeMap[node_hit_id].node_pt;
 
 				// Add Load
-				model_loads.add_load(line_hit_id, load_param, load_loc, load_start_time, load_end_time, load_value, load_angle);
+				model_loads.add_load(node_hit_id, load_loc, load_start_time, load_end_time, load_value, load_angle);
 				model_loads.set_buffer();
 			}
 			else
 			{
 				// remove all the loads on the member
-				model_loads.delete_load(line_hit_id);
+				model_loads.delete_load(node_hit_id);
 				model_loads.set_buffer();
 			}
 		}
@@ -1170,7 +1165,7 @@ void geom_store::create_geometry(nodes_list_store& model_nodes, elementline_list
 		temp_load = load.second;
 
 		// Add to the load list
-		this->model_loads.add_load(temp_load.line_id,temp_load.load_loc_param, temp_load.load_loc, temp_load.load_start_time,
+		this->model_loads.add_load(temp_load.node_id, temp_load.load_loc, temp_load.load_start_time,
 			temp_load.load_end_time, temp_load.load_value, temp_load.load_angle);
 	}
 
