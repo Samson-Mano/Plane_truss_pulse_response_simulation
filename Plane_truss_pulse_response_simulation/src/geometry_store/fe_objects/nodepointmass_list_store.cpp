@@ -35,7 +35,7 @@ void nodepointmass_list_store::init(geom_parameters* geom_param_ptr)
 }
 
 void nodepointmass_list_store::add_pointmass(int& node_id, glm::vec2& ptmass_loc, glm::vec2 ptmass_defl, 
-	double& ptmass_x, double& ptmass_y, double& ptmass_xy, bool is_offset)
+	double& ptmass_x, double& ptmass_y, bool is_offset)
 {
 	// Add the point mass
 	nodepointmass_data temp_ptmass_data;
@@ -44,7 +44,6 @@ void nodepointmass_list_store::add_pointmass(int& node_id, glm::vec2& ptmass_loc
 	temp_ptmass_data.ptmass_defl = ptmass_defl;
 	temp_ptmass_data.ptmass_x = ptmass_x;
 	temp_ptmass_data.ptmass_y = ptmass_y;
-	temp_ptmass_data.ptmass_xy = ptmass_xy;
 	temp_ptmass_data.is_offset = is_offset;
 
 	// Insert the constarint data to unordered map
@@ -68,19 +67,19 @@ void nodepointmass_list_store::delete_pointmass(int& node_id)
 	// Delete the point mass
 	if (ptmass_count != 0)
 	{
-		// Remove the constarint data to unordered map
+		// Remove the point mass data to unordered map
 		// Searching for node_id
-		// Check there is already a constraint in the found node
+		// Check there is already a point mass in the found node
 		if (ptmassMap.find(node_id) != ptmassMap.end())
 		{
-			// Node is already have constraint
-			// so remove the constraint
+			// Node is already have point mass
+			// so remove the point mass
 			ptmassMap.erase(node_id);
 
 			// Update the buffer
 			set_buffer();
 
-			// adjust the constraint count
+			// adjust the point mass count
 			ptmass_count--;
 		}
 	}
@@ -88,10 +87,10 @@ void nodepointmass_list_store::delete_pointmass(int& node_id)
 
 void nodepointmass_list_store::set_buffer()
 {
-	// Set the buffer for constraints
+	// Set the buffer for point mass
 	if (ptmass_count == 0)
 	{
-		// No constraint to paint
+		// No point mass to paint
 		return;
 	}
 
@@ -115,12 +114,6 @@ void nodepointmass_list_store::set_buffer()
 		{
 			// mass y
 			max_ptmass_value = ptm.ptmass_y;
-		}
-
-		if (max_ptmass_value < ptm.ptmass_xy)
-		{
-			// mass xy
-			max_ptmass_value = ptm.ptmass_xy;
 		}
 
 		//__________________________________________________________________________
@@ -148,20 +141,6 @@ void nodepointmass_list_store::set_buffer()
 			ss << std::fixed << std::setprecision(geom_param_ptr->load_precision) << ptm.ptmass_y;
 
 			temp_str = temp_str + "m_y = " + ss.str();
-		}
-		//__________________________________________________________________________
-		if (ptm.ptmass_y != 0)
-		{
-			if (temp_str != "")
-			{
-				// Add a comma if value is already there
-				temp_str = temp_str + ", ";
-			}
-
-			std::stringstream ss;
-			ss << std::fixed << std::setprecision(geom_param_ptr->load_precision) << ptm.ptmass_xy;
-
-			temp_str = temp_str + "m_xy = " + ss.str();
 		}
 
 		ptmass_value_labels.add_text(temp_str, ptm.ptmass_loc, glm::vec2(0), temp_color, 0.0, true, false);
@@ -270,7 +249,7 @@ void nodepointmass_list_store::get_constraint_buffer(nodepointmass_data& ptm, fl
 {
 	// Constraint color
 	glm::vec3 ptmass_color = geom_param_ptr->geom_colors.ptmass_color;
-	double mass_val = std::max(std::max(ptm.ptmass_x, ptm.ptmass_y), ptm.ptmass_xy);
+	double mass_val = std::max(ptm.ptmass_x, ptm.ptmass_y);
 	float corner_size = static_cast<float>(-3.4 * (mass_val / max_ptmass_value) * (geom_param_ptr->node_circle_radii / geom_param_ptr->geom_scale));
 
 	// Set the Point mass vertices Corner 1 Top Left

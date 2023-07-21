@@ -11,7 +11,7 @@ mouse_events::~mouse_events()
 }
 
 void mouse_events::init(geom_store* geom,load_window* ld_window, constraint_window* ct_window, 
-	material_window* mat_window, pointmass_window* ptm_window)
+	material_window* mat_window, pointmass_window* ptm_window, inlcondition_window* inl_window)
 {
 	// Intialize the geometry and tool window pointers
 	this->geom = geom;
@@ -21,6 +21,7 @@ void mouse_events::init(geom_store* geom,load_window* ld_window, constraint_wind
 	this->ct_window = ct_window;
 	this->mat_window = mat_window;
 	this->ptm_window = ptm_window;
+	this->inl_window = inl_window;
 }
 
 void mouse_events::mouse_location(glm::vec2& loc)
@@ -132,8 +133,16 @@ void mouse_events::left_mouse_click(glm::vec2& loc)
 	if ((ptm_window->is_add_pointmass) == true)
 	{
 		// Add Point Mass
-		geom->set_nodal_pointmass(loc, ptm_window->mass_x, ptm_window->mass_y, ptm_window->mass_xy, true);
+		geom->set_nodal_pointmass(loc, ptm_window->mass_x, ptm_window->mass_y, true);
 	}
+
+	if ((inl_window->is_add_initial_condition) == true)
+	{
+		// Add initial condition
+		geom->set_nodal_initialcondition(loc, inl_window->initial_displacement_x, inl_window->initial_displacement_y,
+			inl_window->initial_velocity_x, inl_window->initial_velocity_y, true);
+	}
+
 
 	/*
 	glm::vec2 mouse_click_loc, double& load_param, double& load_start_time, double& load_end_time,
@@ -168,8 +177,17 @@ void mouse_events::right_mouse_click(glm::vec2& loc)
 	if ((ptm_window->is_add_pointmass) == true)
 	{
 		// Remove Point Mass
-		geom->set_nodal_pointmass(loc, ptm_window->mass_x, ptm_window->mass_x, ptm_window->mass_xy, false);
+		geom->set_nodal_pointmass(loc, ptm_window->mass_x, ptm_window->mass_x,false);
 	}
+
+
+	if ((inl_window->is_add_initial_condition) == true)
+	{
+		// Remove initial condition
+		geom->set_nodal_initialcondition(loc, inl_window->initial_displacement_x, inl_window->initial_displacement_y,
+			inl_window->initial_velocity_x, inl_window->initial_velocity_y, false);
+	}
+
 
 	// std::cout << "Right mouse single click" << std::endl;
 }

@@ -12,10 +12,10 @@ mouse_event_handler::~mouse_event_handler()
 }
 
 void mouse_event_handler::init(geom_store* geom, load_window* ld_window,
-	constraint_window* ct_window, material_window* mat_window, pointmass_window* ptm_window)
+	constraint_window* ct_window, material_window* mat_window, pointmass_window* ptm_window, inlcondition_window* inl_window)
 {
 	// Add the pointers to initialize the mouse events
-	mouse_evnt.init(geom, ld_window, ct_window, mat_window, ptm_window);
+	mouse_evnt.init(geom, ld_window, ct_window, mat_window, ptm_window, inl_window);
 }
 
 void mouse_event_handler::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)

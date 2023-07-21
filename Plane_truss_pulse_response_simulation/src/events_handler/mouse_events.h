@@ -10,6 +10,7 @@ public:
 	constraint_window* ct_window = nullptr;
 	material_window* mat_window = nullptr;
 	pointmass_window* ptm_window = nullptr;
+	inlcondition_window* inl_window = nullptr;
 
 	glm::vec2 click_pt = glm::vec2(0);
 	glm::vec2 curr_pt = glm::vec2(0);
@@ -20,7 +21,8 @@ public:
 
 	mouse_events();
 	~mouse_events();
-	void init(geom_store* geom, load_window* ld_window,constraint_window* ct_window, material_window* mat_window, pointmass_window* ptm_window);
+	void init(geom_store* geom, load_window* ld_window,constraint_window* ct_window, 
+		material_window* mat_window, pointmass_window* ptm_window, inlcondition_window* inl_window);
 
 	void mouse_location(glm::vec2& loc);
 	void pan_operation_start(glm::vec2& loc);

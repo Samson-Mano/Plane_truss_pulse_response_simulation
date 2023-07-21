@@ -10,7 +10,7 @@ geom_store::~geom_store()
 	// Empty Destructor
 }
 
-void geom_store::init(options_window* op_window, material_window* mat_window, 
+void geom_store::init(options_window* op_window, material_window* mat_window,
 	modal_analysis_window* sol_modal_window, pulse_response_window* sol_pulse_window)
 {
 	// Initialize
@@ -26,6 +26,7 @@ void geom_store::init(options_window* op_window, material_window* mat_window,
 	model_constarints.init(&geom_param);
 	model_loads.init(&geom_param);
 	model_ptmass.init(&geom_param);
+	model_inlcond.init(&geom_param);
 
 	// Initialize the modal analysis result nodes and lines
 	modal_results.clear_data();
@@ -188,8 +189,11 @@ void geom_store::read_varai2d(std::ifstream& input_file)
 	nodepointmass_list_store model_ptmass;
 	model_ptmass.init(&geom_param);
 
+	nodeinlcond_list_store model_inlcond;
+	model_inlcond.init(&geom_param);
+
 	// Re-instantitize geom_store object using the nodeMap and lineMap
-	create_geometry(model_nodes, model_lineelements, model_constarints, model_loads, model_ptmass);
+	create_geometry(model_nodes, model_lineelements, model_constarints, model_loads, model_ptmass, model_inlcond);
 }
 
 void geom_store::read_dxfdata(std::ostringstream& input_data)
@@ -206,7 +210,7 @@ void geom_store::read_dxfdata(std::ostringstream& input_data)
 	}
 
 	int j = 0, i = 0;
-	
+
 	// Create a temporary variable to store the nodes
 	nodes_list_store model_nodes;
 	model_nodes.init(&geom_param);
@@ -289,9 +293,11 @@ void geom_store::read_dxfdata(std::ostringstream& input_data)
 	nodepointmass_list_store model_ptmass;
 	model_ptmass.init(&geom_param);
 
-	// Re-instantitize geom_store object using the nodeMap and lineMap
-	create_geometry(model_nodes, model_lineelements, model_constarints, model_loads, model_ptmass);
+	nodeinlcond_list_store model_inlcond;
+	model_inlcond.init(&geom_param);
 
+	// Re-instantitize geom_store object using the nodeMap and lineMap
+	create_geometry(model_nodes, model_lineelements, model_constarints, model_loads, model_ptmass, model_inlcond);
 }
 
 
@@ -332,6 +338,10 @@ void geom_store::read_rawdata(std::ifstream& input_file)
 	// Point mass data store
 	nodepointmass_list_store model_ptmass;
 	model_ptmass.init(&geom_param);
+
+	// Initial condition data store
+	nodeinlcond_list_store model_inlcond;
+	model_inlcond.init(&geom_param);
 
 	// Material data list
 	std::unordered_map<int, material_data> mat_data;
@@ -401,10 +411,20 @@ void geom_store::read_rawdata(std::ifstream& input_file)
 			int ptm_nd_id = std::stoi(fields[1]); // load node ID
 			double ptm_x = std::stod(fields[2]); // point mass x
 			double ptm_y = std::stod(fields[3]); // point mass y
-			double ptm_xy = std::stod(fields[4]); // point mass xy
 
-			// Add to load map
-			model_ptmass.add_pointmass(ptm_nd_id, model_nodes.nodeMap[ptm_nd_id].node_pt, glm::vec2(0), ptm_x, ptm_y, ptm_xy, false);
+			// Add to point mass map
+			model_ptmass.add_pointmass(ptm_nd_id, model_nodes.nodeMap[ptm_nd_id].node_pt, glm::vec2(0), ptm_x, ptm_y, false);
+		}
+		else if (type == "ilcd")
+		{
+			int ilcd_nd_id = std::stoi(fields[1]); // initial condition node ID
+			double ilcd_displ_x = std::stod(fields[2]); // initial displacement x
+			double ilcd_displ_y = std::stod(fields[3]); // initial displacement y
+			double ilcd_velo_x = std::stod(fields[4]); // initial velocity x
+			double ilcd_velo_y = std::stod(fields[5]); // initial velocity y
+
+			// Add to the initial condition map
+			model_inlcond.add_inlcondition(ilcd_nd_id, model_nodes.nodeMap[ilcd_nd_id].node_pt, ilcd_displ_x, ilcd_displ_y, ilcd_velo_x, ilcd_velo_y);
 		}
 		else if (type == "mtrl")
 		{
@@ -436,7 +456,7 @@ void geom_store::read_rawdata(std::ifstream& input_file)
 	mat_window->material_list = mat_data;
 
 	// Re-instantitize geom_store object using the nodeMap and lineMap
-	create_geometry(model_nodes, model_lineelements, model_constarints, model_loads, model_ptmass);
+	create_geometry(model_nodes, model_lineelements, model_constarints, model_loads, model_ptmass, model_inlcond);
 }
 
 void geom_store::write_rawdata(std::ofstream& output_file)
@@ -503,8 +523,21 @@ void geom_store::write_rawdata(std::ofstream& output_file)
 		output_file << "ptms, "
 			<< ptm.node_id << ", "
 			<< ptm.ptmass_x << ", "
-			<< ptm.ptmass_y << ", "
-			<< ptm.ptmass_xy << std::endl;
+			<< ptm.ptmass_y << std::endl;
+	}
+
+	// Write all the initial condition data
+	for (auto& ilcd_m : model_inlcond.inlcondMap)
+	{
+		// Print the initial condition details
+		nodeinl_condition_data ilcd = ilcd_m.second;
+
+		output_file << "ilcd, "
+			<< ilcd.node_id << ", "
+			<< ilcd.inl_displacement_x << ", "
+			<< ilcd.inl_displacement_y << ", "
+			<< ilcd.inl_velocity_x << ", "
+			<< ilcd.inl_velocity_y << std::endl;
 	}
 
 	// Write all the material property
@@ -563,6 +596,7 @@ void geom_store::update_model_matrix()
 	model_constarints.update_geometry_matrices(true, false, false, false, false);
 	model_loads.update_geometry_matrices(true, false, false, false, false);
 	model_ptmass.update_geometry_matrices(true, false, false, false, false);
+	model_inlcond.update_geometry_matrices(true, false, false, false, false);
 
 	// Update the modal analysis result matrix
 	modal_result_lineelements.update_geometry_matrices(true, false, false, false, false);
@@ -590,6 +624,7 @@ void geom_store::update_model_zoomfit()
 	model_constarints.update_geometry_matrices(false, true, true, false, false);
 	model_loads.update_geometry_matrices(false, true, true, false, false);
 	model_ptmass.update_geometry_matrices(false, true, true, false, false);
+	model_inlcond.update_geometry_matrices(false, true, true, false, false);
 
 	// Update the modal analysis result matrix
 	modal_result_lineelements.update_geometry_matrices(false, true, true, false, false);
@@ -617,6 +652,7 @@ void geom_store::update_model_pan(glm::vec2& transl)
 	model_constarints.update_geometry_matrices(false, true, false, false, false);
 	model_loads.update_geometry_matrices(false, true, false, false, false);
 	model_ptmass.update_geometry_matrices(false, true, false, false, false);
+	model_inlcond.update_geometry_matrices(false, true, false, false, false);
 
 	// Update the modal analysis result matrix
 	modal_result_lineelements.update_geometry_matrices(false, true, false, false, false);
@@ -641,6 +677,7 @@ void geom_store::update_model_zoom(double& z_scale)
 	model_constarints.update_geometry_matrices(false, false, true, false, false);
 	model_loads.update_geometry_matrices(false, false, true, false, false);
 	model_ptmass.update_geometry_matrices(false, false, true, false, false);
+	model_inlcond.update_geometry_matrices(false, false, true, false, false);
 
 	// Update the modal analysis result matrix
 	modal_result_lineelements.update_geometry_matrices(false, false, true, false, false);
@@ -673,12 +710,11 @@ void geom_store::update_model_transperency(bool is_transparent)
 	model_constarints.update_geometry_matrices(false, false, false, true, false);
 	model_loads.update_geometry_matrices(false, false, false, true, false);
 	model_ptmass.update_geometry_matrices(false, false, false, true, false);
+	model_inlcond.update_geometry_matrices(false, false, false, true, false);
 
 	// Update the modal analysis result matrix
 	// modal_result_lineelements.update_geometry_matrices(false, false, false, true, false);
 	// modal_result_nodes.update_geometry_matrices(false, false, false, true, false);
-
-
 }
 
 void geom_store::set_nodal_constraint(glm::vec2 mouse_click_loc, int& constraint_type, double& constraint_angle, bool is_add)
@@ -764,7 +800,7 @@ void geom_store::set_elementline_material(glm::vec2 mouse_click_loc)
 	}
 }
 
-void geom_store::set_nodal_pointmass(glm::vec2 mouse_click_loc, double& pt_mass_x, double& pt_mass_y, double& pt_mass_xy, bool is_add)
+void geom_store::set_nodal_pointmass(glm::vec2 mouse_click_loc, double& pt_mass_x, double& pt_mass_y, bool is_add)
 {
 	// Set the nodal point mass
 	int node_hit_id = -1;
@@ -779,7 +815,7 @@ void geom_store::set_nodal_pointmass(glm::vec2 mouse_click_loc, double& pt_mass_
 			if (is_add == true)
 			{
 				// Add Point mass
-				model_ptmass.add_pointmass(node_hit_id, model_nodes.nodeMap[node_hit_id].node_pt, glm::vec2(0), pt_mass_x, pt_mass_y, pt_mass_xy, false);
+				model_ptmass.add_pointmass(node_hit_id, model_nodes.nodeMap[node_hit_id].node_pt, glm::vec2(0), pt_mass_x, pt_mass_y, false);
 				model_ptmass.set_buffer();
 			}
 			else
@@ -787,6 +823,35 @@ void geom_store::set_nodal_pointmass(glm::vec2 mouse_click_loc, double& pt_mass_
 				// remove Point mass
 				model_ptmass.delete_pointmass(node_hit_id);
 				model_ptmass.set_buffer();
+			}
+		}
+	}
+}
+
+void geom_store::set_nodal_initialcondition(glm::vec2 mouse_click_loc, double& inl_displ_x, double& inl_displ_y,
+	double& inl_velo_x, double& inl_velo_y, bool is_add)
+{
+	// Set the nodal initial condition
+	int node_hit_id = -1;
+
+	if (is_geometry_set == true)
+	{
+		// Check whether the node is hit or not
+		node_hit_id = model_nodes.is_node_hit(mouse_click_loc);;
+		if (node_hit_id != -1)
+		{
+			// Node is hit
+			if (is_add == true)
+			{
+				// Add initial condition
+				model_inlcond.add_inlcondition(node_hit_id, model_nodes.nodeMap[node_hit_id].node_pt,inl_displ_x,inl_displ_y,inl_velo_x,inl_velo_y);
+				model_inlcond.set_buffer();
+			}
+			else
+			{
+				// remove initial condition
+				model_inlcond.delete_inlcondition(node_hit_id);
+				model_inlcond.set_buffer();
 			}
 		}
 	}
@@ -855,9 +920,12 @@ void geom_store::paint_model()
 
 	if (op_window->is_show_loadvalue == true)
 	{
-		// Show load value lable
+		// Show load value label
 		model_loads.paint_load_labels();
 		model_ptmass.paint_pointmass_label();
+
+		// Show the initial condition label
+		model_inlcond.paint_inlcondition_label();
 	}
 
 	if (mat_window->is_show_window == true)
@@ -976,7 +1044,7 @@ void geom_store::paint_modal_analysis()
 		{
 			// update the modal window list box
 			sol_modal_window->mode_result_str = modal_results.mode_result_str;
-			
+
 			// Set the buffer
 			sol_modal_window->is_mode_selection_changed = true;
 
@@ -1108,7 +1176,8 @@ void geom_store::paint_pulse_analysis()
 }
 
 void geom_store::create_geometry(nodes_list_store& model_nodes, elementline_list_store& model_lineelements,
-	nodeconstraint_list_store& model_constarints, nodeload_list_store& model_loads, nodepointmass_list_store& model_ptmass)
+	nodeconstraint_list_store& model_constarints, nodeload_list_store& model_loads, nodepointmass_list_store& model_ptmass,
+	nodeinlcond_list_store& model_inlcond)
 {
 	// Reinitialize the model geometry
 	is_geometry_set = false;
@@ -1119,6 +1188,7 @@ void geom_store::create_geometry(nodes_list_store& model_nodes, elementline_list
 	this->model_constarints.init(&geom_param);
 	this->model_loads.init(&geom_param);
 	this->model_ptmass.init(&geom_param);
+	this->model_inlcond.init(&geom_param);
 
 	//________________________________________________
 
@@ -1178,7 +1248,20 @@ void geom_store::create_geometry(nodes_list_store& model_nodes, elementline_list
 
 		// Add to the point mass list
 		this->model_ptmass.add_pointmass(temp_ptmass.node_id, temp_ptmass.ptmass_loc, temp_ptmass.ptmass_defl,
-			temp_ptmass.ptmass_x, temp_ptmass.ptmass_y, temp_ptmass.ptmass_xy, temp_ptmass.is_offset);
+			temp_ptmass.ptmass_x, temp_ptmass.ptmass_y, temp_ptmass.is_offset);
+	}
+
+	// Add to model initial conditions
+	for (auto& inlcond_m : model_inlcond.inlcondMap)
+	{
+		// Create a temporary initial condition data
+		nodeinl_condition_data temp_inlcond;
+		temp_inlcond = inlcond_m.second;
+
+
+		// Add to the initial condition list
+		this->model_inlcond.add_inlcondition(temp_inlcond.node_id, temp_inlcond.inlcond_loc, temp_inlcond.inl_displacement_x,
+			temp_inlcond.inl_displacement_y, temp_inlcond.inl_velocity_x, temp_inlcond.inl_velocity_y);
 	}
 
 
@@ -1204,7 +1287,7 @@ void geom_store::create_geometry(nodes_list_store& model_nodes, elementline_list
 	this->model_constarints.set_buffer();
 	this->model_loads.set_buffer();
 	this->model_ptmass.set_buffer();
-
+	this->model_inlcond.set_buffer();
 
 	// Initialize the modal analysis result nodes and lines
 	modal_results.clear_data();

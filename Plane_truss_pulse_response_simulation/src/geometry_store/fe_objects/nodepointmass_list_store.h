@@ -13,7 +13,6 @@ struct nodepointmass_data
 	glm::vec2 ptmass_defl = glm::vec2(0);
 	double ptmass_x = 0.0;
 	double ptmass_y = 0.0;
-	double ptmass_xy = 0.0;
 	bool is_offset = 0.0;
 };
 
@@ -28,7 +27,7 @@ public:
 	nodepointmass_list_store();
 	~nodepointmass_list_store();
 	void init(geom_parameters* geom_param_ptr);
-	void add_pointmass(int& node_id, glm::vec2& ptmass_loc, glm::vec2 ptmass_defl, double& ptmass_x, double& ptmass_y, double& ptmass_xy, bool is_offset);
+	void add_pointmass(int& node_id, glm::vec2& ptmass_loc, glm::vec2 ptmass_defl, double& ptmass_x, double& ptmass_y, bool is_offset);
 	void delete_pointmass(int& node_id);
 	void set_buffer();
 	void paint_pointmass();

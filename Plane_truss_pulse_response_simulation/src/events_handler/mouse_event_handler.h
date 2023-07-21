@@ -19,7 +19,8 @@ public:
 	mouse_event_handler();
 	~mouse_event_handler();
 
-	void init(geom_store* geom, load_window* ld_window,constraint_window* ct_window, material_window* mat_window,pointmass_window* ptm_window);
+	void init(geom_store* geom, load_window* ld_window,constraint_window* ct_window, 
+		material_window* mat_window,pointmass_window* ptm_window, inlcondition_window* inl_window);
 	// Mouse button callback function
 	static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 	// Mouse move callback function

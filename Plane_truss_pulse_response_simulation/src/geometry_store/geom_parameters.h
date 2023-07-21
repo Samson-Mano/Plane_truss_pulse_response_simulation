@@ -13,6 +13,8 @@ struct geom_color_theme
 	glm::vec3 constraint_color = glm::vec3(0);
 	glm::vec3 load_color = glm::vec3(0);
 	glm::vec3 ptmass_color = glm::vec3(0);
+	glm::vec3 inlcond_displ_color = glm::vec3(0);
+	glm::vec3 inlcond_velo_color = glm::vec3(0);
 };
 
 class geom_parameters
@@ -26,6 +28,7 @@ public:
 	const int length_precision = 3;
 	const int coord_precision = 3;
 	const int load_precision = 2;
+	const int inlcond_precision = 3;
 	const int defl_precision = 6;
 
 	// File path

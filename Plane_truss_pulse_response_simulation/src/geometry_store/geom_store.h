@@ -11,6 +11,7 @@
 #include "../tool_window/material_window.h"
 #include "../tool_window/options_window.h"
 #include "../tool_window/pointmass_window.h"
+#include "../tool_window/inlcondition_window.h"
 #include "../tool_window/solver_window.h"
 #include "../tool_window/modal_analysis_window.h"
 #include "../tool_window/pulse_response_window.h"
@@ -25,6 +26,7 @@
 #include "fe_objects/nodeconstraint_list_store.h"
 #include "fe_objects/nodeload_list_store.h"
 #include "fe_objects/nodepointmass_list_store.h"
+#include "fe_objects/nodeinlcond_list_store.h"
 
 // FE Results Modal Analysis
 #include "modal_result_objects/modal_analysis_result_store.h"
@@ -70,8 +72,10 @@ public:
 	void set_member_load(glm::vec2 mouse_click_loc, double& load_start_time, double& load_end_time,
 		double& load_value, double& load_angle, bool is_add);
 	void set_elementline_material(glm::vec2 mouse_click_loc);
-	void set_nodal_pointmass(glm::vec2 mouse_click_loc, double& pt_mass_x, double& pt_mass_y, 
-		double& pt_mass_xy, bool is_add);
+	void set_nodal_pointmass(glm::vec2 mouse_click_loc, double& pt_mass_x, double& pt_mass_y, bool is_add);
+	void set_nodal_initialcondition(glm::vec2 mouse_click_loc, double& inl_displ_x, double& inl_displ_y,
+		double& inl_velo_x, double& inl_velo_y,  bool is_add);
+
 
 	// Functions to paint the geometry and results
 	void paint_geometry();
@@ -83,6 +87,7 @@ private:
 	nodeconstraint_list_store model_constarints;
 	nodeload_list_store model_loads;
 	nodepointmass_list_store model_ptmass;
+	nodeinlcond_list_store model_inlcond;
 
 	// Modal Analysis results
 	modal_analysis_result_store modal_results;
@@ -110,7 +115,8 @@ private:
 		elementline_list_store& model_lineelements,
 		nodeconstraint_list_store& model_constarints,
 		nodeload_list_store& model_loads, 
-		nodepointmass_list_store& model_ptmass);
+		nodepointmass_list_store& model_ptmass,
+		nodeinlcond_list_store& model_inlcond);
 
 	std::pair<glm::vec2, glm::vec2> findMinMaxXY(const std::unordered_map<int, node_store>& model_nodes);
 	glm::vec2 findGeometricCenter(const std::unordered_map<int, node_store>& model_nodes);

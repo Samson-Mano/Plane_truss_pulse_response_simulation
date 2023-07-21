@@ -101,49 +101,6 @@ void pointmass_window::render_window()
 	ImGui::SameLine();
 	ImGui::Text(" %.1f", mass_y);
 
-	// ________________________________________________________________________________________________________________________________
-		// Input box to give input via text
-	static bool massxy_input_mode = false;
-	static char massxy_str[16] = ""; // buffer to store input mass xy string
-	static float massxy_input = 0; // buffer to store input mass xy value
-
-	// Button to switch to input mode
-	if (!massxy_input_mode)
-	{
-		if (ImGui::Button("Mass XY"))
-		{
-			massxy_input_mode = true;
-			snprintf(massxy_str, 16, "%.1f", mass_xy); // set the buffer to current Mass XY
-		}
-	}
-	else // input mode
-	{
-		// Text box to input value
-		ImGui::SetNextItemWidth(60.0f);
-		if (ImGui::InputText("##Mass XY", massxy_str, IM_ARRAYSIZE(massxy_str), ImGuiInputTextFlags_CharsDecimal))
-		{
-			// convert the input string to int
-			mass_xy = atof(massxy_str);
-			// set the load value to input value
-			// deformation_scale_max = defscale_input;
-		}
-
-		// Button to switch back to slider mode
-		ImGui::SameLine();
-		if (ImGui::Button("OK"))
-		{
-			massxy_input_mode = false;
-		}
-	}
-
-	// Text for load value
-	ImGui::SameLine();
-	ImGui::Text(" %.1f", mass_xy);
-
-	// ________________________________________________________________________________________________________________________________
-
-
-
 	ImGui::Spacing();
 
 	// Add Point Mass
@@ -161,7 +118,7 @@ void pointmass_window::render_window()
 		is_add_pointmass = !is_add_pointmass;
 	}
 
-	// Text to inform user whether Add constrain is added or not
+	// Text to inform user whether Add point mass is added or not
 	ImGui::SameLine(); // move cursor to the same line
 	if (is_add_pointmass == true)
 	{

@@ -69,6 +69,7 @@ void app_window::init()
 	// Intialize tool windows
 	ct_window.init(); // Constraint window
 	ld_window.init(); // Load window
+	inl_window.init(); // Initial condition window
 	mat_window.init(); // Material window
 	op_window.init(); // Option window
 	ptm_window.init(); // Point mass window
@@ -83,7 +84,7 @@ void app_window::init()
 	glfwSetWindowUserPointer(window, &mouse_Handler);
 
 	// Passing the address of geom and window dimensions to mouse handler
-	mouse_Handler.init(&geom, &ld_window, &ct_window, &mat_window, &ptm_window);
+	mouse_Handler.init(&geom, &ld_window, &ct_window, &mat_window, &ptm_window, &inl_window);
 
 	// Pass the address of options window, material window, solver window
 	// geom.add_window_ptr(&op_window, &mat_window, &fe_window);
@@ -243,12 +244,20 @@ void app_window::menu_events()
 					ct_window.is_show_window = true;
 				}
 			}
-			if (ImGui::MenuItem("Loads"))
+			if (ImGui::MenuItem("Point Loads"))
 			{
 				// Handle menu Add Load
 				if (geom.is_geometry_set == true)
 				{
 					ld_window.is_show_window = true;
+				}
+			}
+			if (ImGui::MenuItem("Initial Condition"))
+			{
+				// Handle menu Add Initial conditions
+				if (geom.is_geometry_set == true)
+				{
+					inl_window.is_show_window = true;
 				}
 			}
 			if (ImGui::MenuItem("Point Mass"))
@@ -304,6 +313,7 @@ void app_window::menu_events()
 	// Execute window render operation
 	ct_window.render_window();
 	ld_window.render_window();
+	inl_window.render_window();
 	mat_window.render_window();
 	op_window.render_window();
 	ptm_window.render_window();

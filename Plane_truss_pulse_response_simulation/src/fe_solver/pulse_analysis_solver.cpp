@@ -446,7 +446,7 @@ void pulse_analysis_solver::get_global_pointmass_matrix(Eigen::MatrixXd& globalP
 
 			globalPointMassMatrix((nd_map * 3) + 0, (nd_map * 3) + 0) = ptm.ptmass_x;
 			globalPointMassMatrix((nd_map * 3) + 1, (nd_map * 3) + 1) = ptm.ptmass_y;
-			globalPointMassMatrix((nd_map * 3) + 2, (nd_map * 3) + 2) = ptm.ptmass_xy;
+			globalPointMassMatrix((nd_map * 3) + 2, (nd_map * 3) + 2) = 0.0;
 		}
 		else
 		{

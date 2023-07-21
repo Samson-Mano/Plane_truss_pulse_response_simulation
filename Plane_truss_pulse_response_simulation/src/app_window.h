@@ -16,6 +16,7 @@
 #include "events_handler/file_events.h"
 //____ Tool Window
 #include "tool_window/constraint_window.h"
+#include "tool_window/inlcondition_window.h"
 #include "tool_window/load_window.h"
 #include "tool_window/material_window.h"
 #include "tool_window/options_window.h"
@@ -45,6 +46,7 @@ public:
 
 	// Tool window variable
 	load_window ld_window;
+	inlcondition_window inl_window;
 	constraint_window ct_window;
 	options_window op_window;
 	material_window mat_window;
