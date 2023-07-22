@@ -15,6 +15,7 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 	const nodeconstraint_list_store& model_constarints,
 	const nodeload_list_store& model_loads,
 	const nodepointmass_list_store& model_ptmass,
+	const nodeinlcond_list_store& model_inlcond,
 	const std::unordered_map<int, material_data>& material_list,
 	const bool& is_include_consistent_mass_matrix,
 	const modal_analysis_result_store& modal_results,
@@ -31,8 +32,8 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 	pulse_response_result.clear_results();
 
 	// Check the model
-	// Number of loads (Exit if no load is present)
-	if (model_loads.load_count == 0)
+	// Number of loads, initial condition (Exit if no load and no initial condition is present)
+	if (model_loads.load_count == 0 && model_inlcond.inlcond_count == 0)
 	{
 		return;
 	}

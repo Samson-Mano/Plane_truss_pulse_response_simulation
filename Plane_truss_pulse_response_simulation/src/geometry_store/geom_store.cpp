@@ -1145,6 +1145,7 @@ void geom_store::paint_pulse_analysis()
 			model_constarints,
 			model_loads,
 			model_ptmass,
+			model_inlcond,
 			mat_window->material_list,
 			sol_modal_window->is_include_consistent_mass_matrix,
 			modal_results,

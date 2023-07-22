@@ -33,7 +33,7 @@ void modal_nodes_list_store::clear_data()
 	max_node_displ.clear();
 }
 
-void modal_nodes_list_store::add_result_node(int& node_id, glm::vec2& node_pt, std::unordered_map<int, glm::vec3> node_modal_displ)
+void modal_nodes_list_store::add_result_node(int& node_id, glm::vec2& node_pt, std::unordered_map<int, glm::vec2> node_modal_displ)
 {
 	// Add result nodes
 	modal_node_store temp_node;
@@ -93,12 +93,8 @@ void modal_nodes_list_store::set_buffer(int selected_mode)
 		std::stringstream mode_y;
 		mode_y << std::fixed << std::setprecision(3) << nd.node_modal_displ[selected_mode].y;
 
-		// Mode xy
-		std::stringstream mode_xy;
-		mode_xy << std::fixed << std::setprecision(3) << nd.node_modal_displ[selected_mode].z;
 
-
-		std::string temp_str = "(" + mode_x.str() + ", " + mode_y.str() + ", " + mode_xy.str() + " )";
+		std::string temp_str = "(" + mode_x.str() + ", " + mode_y.str() + " )";
 		
 		modal_node_vector_labels.add_text(temp_str, nd.node_pt, pt_displ, pt_contour_color, 0.0f, true, true);
 	}

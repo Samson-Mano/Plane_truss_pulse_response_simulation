@@ -13,7 +13,7 @@ struct modal_node_store
 	glm::vec2 node_pt = glm::vec2(0);
 
 	// Modal results (mode number, (x, y, rot_xy))
-	std::unordered_map<int, glm::vec3> node_modal_displ;
+	std::unordered_map<int, glm::vec2> node_modal_displ;
 };
 
 class modal_nodes_list_store
@@ -28,7 +28,7 @@ public:
 	~modal_nodes_list_store();
 	void init(geom_parameters* geom_param_ptr);
 	void clear_data();
-	void add_result_node(int& node_id, glm::vec2& node_pt, std::unordered_map<int, glm::vec3> node_modal_displ);
+	void add_result_node(int& node_id, glm::vec2& node_pt, std::unordered_map<int, glm::vec2> node_modal_displ);
 	void set_buffer(int selected_mode);
 	void paint_modal_nodes();
 	void paint_label_mode_vectors();

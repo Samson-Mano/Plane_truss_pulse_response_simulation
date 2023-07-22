@@ -23,14 +23,14 @@ struct modal_elementline_store
 	modal_node_store* endNode = nullptr; // end node
 
 	// Line modal displacement data
-	std::vector<modal_line_points> hermite_line_data;
+	std::vector<modal_line_points> discretized_bar_line_data;
 };
 
 class modal_elementline_list_store
 {
 public:
 	const int colormap_type = 1;
-	const int interpolation_count = 20;
+	const int interpolation_count = 4;
 	unsigned int modal_elementline_count = 0;
 	std::unordered_map<int, modal_elementline_store> modal_elementlineMap; // Create an unordered_map to store lines with ID as key
 	std::unordered_map<int, double> max_node_displ; // Stores the maximum nodal displacement for the whole model
@@ -41,7 +41,7 @@ public:
 	void init(geom_parameters* geom_param_ptr);
 	void clear_data();
 	void add_modal_elementline(int& line_id, modal_node_store* startNode, modal_node_store* endNode);
-	std::vector<modal_line_points> set_line_hermite_interpolation(const int& interpolation_count, modal_node_store* startNode, modal_node_store* endNode);
+	std::vector<modal_line_points> set_line_bar_interpolation(const int& interpolation_count, modal_node_store* startNode, modal_node_store* endNode);
 	double linear_bar_element_interpolation(double q1, double q2, double s);
 	double hermite_beam_element_interpolation(double v1, double theta1, double v2, double theta2, double s);
 

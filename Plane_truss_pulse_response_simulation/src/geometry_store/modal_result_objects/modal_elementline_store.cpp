@@ -47,29 +47,15 @@ void modal_elementline_list_store::add_modal_elementline(int& line_id, modal_nod
 	}
 
 	//__________________________ Add Hermite interpolation for Beam Element
-	temp_line.hermite_line_data = set_line_hermite_interpolation(interpolation_count, startNode, endNode);
+	temp_line.discretized_bar_line_data = set_line_bar_interpolation(interpolation_count, startNode, endNode);
 
 
 	// Insert to the lines
 	modal_elementlineMap.insert({ line_id, temp_line });
 	modal_elementline_count++;
-
-
-	//glm::vec3 temp_color = geom_param_ptr->geom_colors.line_color;
-
-
-	//glm::vec2 start_node_pt = (*startNode).node_pt;
-	//glm::vec2 end_node_pt = (*endNode).node_pt;
-
-	////__________________________ Add the lines
-	//element_lines.add_line(line_id, start_node_pt, end_node_pt,
-	//	glm::vec2(0), glm::vec2(0), temp_color, temp_color, false);
-
-
-
 }
 
-std::vector<modal_line_points> modal_elementline_list_store::set_line_hermite_interpolation(const int& interpolation_count, modal_node_store* startNode, modal_node_store* endNode)
+std::vector<modal_line_points> modal_elementline_list_store::set_line_bar_interpolation(const int& interpolation_count, modal_node_store* startNode, modal_node_store* endNode)
 {
 	// get the start and end point
 	glm::vec2 start_node_pt = (*startNode).node_pt;
@@ -119,8 +105,8 @@ std::vector<modal_line_points> modal_elementline_list_store::set_line_hermite_in
 		for (int j = 0; j < num_of_modes; j++)
 		{
 			// Get the displacement at start point
-			glm::vec3 start_node_displ = (*startNode).node_modal_displ[j];
-			glm::vec3 end_node_displ = (*endNode).node_modal_displ[j];
+			glm::vec2 start_node_displ = (*startNode).node_modal_displ[j];
+			glm::vec2 end_node_displ = (*endNode).node_modal_displ[j];
 
 			// Start point displacement at local axis
 			glm::vec2 local_displ_start_node = glm::vec2(((start_node_displ.x * Lcos) + (start_node_displ.y * Msin)),
@@ -133,11 +119,11 @@ std::vector<modal_line_points> modal_elementline_list_store::set_line_hermite_in
 			//_____________________________________________________________________________________________
 			// Find the interpolation of the displacements at pt1
 			glm::vec2 local_displ_pt1 = glm::vec2(linear_bar_element_interpolation(local_displ_start_node.x, local_displ_end_node.x, t_ratio1),
-				hermite_beam_element_interpolation(local_displ_start_node.y, start_node_displ.z, local_displ_end_node.y, end_node_displ.z,t_ratio1));
+				linear_bar_element_interpolation(local_displ_start_node.y, local_displ_end_node.y, t_ratio1));
 
 			// Find the interpolation of the displacements at pt2
 			glm::vec2 local_displ_pt2 = glm::vec2(linear_bar_element_interpolation(local_displ_start_node.x, local_displ_end_node.x, t_ratio2),
-				hermite_beam_element_interpolation(local_displ_start_node.y, start_node_displ.z, local_displ_end_node.y, end_node_displ.z, t_ratio2));
+				linear_bar_element_interpolation(local_displ_start_node.y, local_displ_end_node.y, t_ratio2));
 
 			// Transform from local to global
 			glm::vec2 global_displ_pt1 = glm::vec2(((local_displ_pt1.x * Lcos) + (local_displ_pt1.y * (-1 * Msin))),
@@ -201,7 +187,7 @@ void modal_elementline_list_store::set_buffer(int selected_mode)
 		modal_elementline_store ln = line_m.second;
 
 		// get all the hermite interpolation line
-		for (auto& h_lines : ln.hermite_line_data)
+		for (auto& h_lines : ln.discretized_bar_line_data)
 		{
 			// Add each individual segment of main line to list
 			// Pt1

@@ -64,7 +64,7 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	output_file.open("modal_analysis_results.txt");
 
 	//____________________________________________________________________________________________________________________
-	int numDOF = model_nodes.node_count * 3; // Number of degrees of freedom (3 DOFs per node (2 translation and 1 rotation)
+	int numDOF = model_nodes.node_count * 2; // Number of degrees of freedom (2 DOFs per node (2 translation)
 
 	// Global Stiffness Matrix
 	Eigen::MatrixXd globalStiffnessMatrix(numDOF, numDOF);
@@ -259,7 +259,7 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 
 	//____________________________________________________________________________________________
 	// Convert the modal result to string  
-	int num_of_rigidbody_modes = get_number_of_rigid_body_modes(model_nodes.node_count,globalDOFMatrix);
+	int num_of_rigidbody_modes = get_number_of_rigid_body_modes(model_nodes.node_count, globalDOFMatrix);
 	std::vector<std::string> mode_result_str;
 	int k = 0;
 
@@ -273,7 +273,7 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 			// Result is not zero
 			freq = std::sqrt(modal_results.eigen_values[i]) / (2.0 * m_pi);
 		}
-	
+
 		// Modal results
 		std::stringstream ss;
 		ss << std::fixed << std::setprecision(2) << freq;
@@ -325,7 +325,7 @@ void modal_analysis_solver::get_global_stiffness_matrix(Eigen::MatrixXd& globalS
 		material_data elementline_material = material_list.at(ln.material_id);
 
 		// Create a matrix for element stiffness matrix
-		Eigen::MatrixXd elementStiffnessMatrix(6, 6);
+		Eigen::MatrixXd elementStiffnessMatrix(4, 4);
 		elementStiffnessMatrix.setZero();
 
 		get_element_stiffness_matrix(elementStiffnessMatrix, ln, elementline_material, model_constarints, output_file);
@@ -334,10 +334,10 @@ void modal_analysis_solver::get_global_stiffness_matrix(Eigen::MatrixXd& globalS
 		int sn_id = nodeid_map[ln.startNode->node_id]; // get the ordered map of the start node ID
 		int en_id = nodeid_map[ln.endNode->node_id]; // get the ordered map of the end node ID
 
-		globalStiffnessMatrix.block<3, 3>(sn_id * 3, sn_id * 3) += elementStiffnessMatrix.block<3, 3>(0, 0);
-		globalStiffnessMatrix.block<3, 3>(sn_id * 3, en_id * 3) += elementStiffnessMatrix.block<3, 3>(0, 3);
-		globalStiffnessMatrix.block<3, 3>(en_id * 3, sn_id * 3) += elementStiffnessMatrix.block<3, 3>(3, 0);
-		globalStiffnessMatrix.block<3, 3>(en_id * 3, en_id * 3) += elementStiffnessMatrix.block<3, 3>(3, 3);
+		globalStiffnessMatrix.block<2, 2>(sn_id * 2, sn_id * 2) += elementStiffnessMatrix.block<2, 2>(0, 0);
+		globalStiffnessMatrix.block<2, 2>(sn_id * 2, en_id * 2) += elementStiffnessMatrix.block<2, 2>(0, 2);
+		globalStiffnessMatrix.block<2, 2>(en_id * 2, sn_id * 2) += elementStiffnessMatrix.block<2, 2>(2, 0);
+		globalStiffnessMatrix.block<2, 2>(en_id * 2, en_id * 2) += elementStiffnessMatrix.block<2, 2>(2, 2);
 	}
 
 	if (print_matrix == true)
@@ -369,44 +369,32 @@ void modal_analysis_solver::get_element_stiffness_matrix(Eigen::MatrixXd& elemen
 
 	//_________________________________________________________
 	// Local -> Global transformation matrix
-	Eigen::MatrixXd L_transformation_matrix(6, 6);
+	Eigen::MatrixXd L_transformation_matrix(2, 4);
 	L_transformation_matrix.setZero();
 
-	L_transformation_matrix.row(0) = Eigen::RowVectorXd({ {Lcos, Msin, 0.0, 0.0, 0.0, 0.0 } });
-	L_transformation_matrix.row(1) = Eigen::RowVectorXd({ { -Msin, Lcos, 0.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, Lcos, Msin, 0.0} });
-	L_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, -Msin, Lcos, 0.0} });
-	L_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
-
+	L_transformation_matrix.row(0) = Eigen::RowVectorXd({ {Lcos, Msin, 0.0, 0.0 } });
+	L_transformation_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 0.0,  Lcos, Msin} });
 
 	//_________________________________________________________
 	// Local element stiffness matrix
-	Eigen::MatrixXd local_element_stiffness_matrix(6, 6);
+	Eigen::MatrixXd local_element_stiffness_matrix(2, 2);
 	local_element_stiffness_matrix.setZero();
 
 	double k1 = (elementline_material.youngs_mod * elementline_material.cs_area) / eLength;
-	double k2 = (1.0) / (eLength * eLength * eLength);
-	double k3 = (1.0) / (eLength * eLength);
-	double k4 = (1.0) / eLength;
 
-	local_element_stiffness_matrix.row(0) = Eigen::RowVectorXd({ {k1, 0.0, 0.0, -1.0 * k1, 0.0, 0.0} });
-	local_element_stiffness_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 12.0 * k2, 6.0 * k3, 0.0, -12.0 * k2, 6.0 * k3} });
-	local_element_stiffness_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 6.0 * k3, 4.0 * k4, 0.0, -6.0 * k3, 2.0 * k4} });
-	local_element_stiffness_matrix.row(3) = Eigen::RowVectorXd({ {-1.0 * k1, 0.0, 0.0, k1, 0.0, 0.0} });
-	local_element_stiffness_matrix.row(4) = Eigen::RowVectorXd({ {0.0, -12.0 * k2, -6.0 * k3, 0.0, 12.0 * k2, -6.0 * k3} });
-	local_element_stiffness_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 6.0 * k3, 2.0 * k4, 0.0, -6.0 * k3, 4.0 * k4} });
+	local_element_stiffness_matrix.row(0) = Eigen::RowVectorXd({ {		 k1, -1.0 * k1 } });
+	local_element_stiffness_matrix.row(1) = Eigen::RowVectorXd({ {-1.0 * k1,		k1 } });
 
 	//_________________________________________________________
 	// Transformed element stiffness matrix
-	Eigen::MatrixXd e_stiffness_matrix(6, 6);
+	Eigen::MatrixXd e_stiffness_matrix(4, 4);
 	e_stiffness_matrix.setZero();
 
 	e_stiffness_matrix = L_transformation_matrix.transpose() * local_element_stiffness_matrix * L_transformation_matrix;
 	//_________________________________________________________
 
 	// Transformation matrices to include support inclinatation
-	Eigen::MatrixXd s_transformation_matrix(6, 6);
+	Eigen::MatrixXd s_transformation_matrix(4, 4);
 	s_transformation_matrix.setZero(); // support inclination transformation matrix
 
 	int constraint_type;
@@ -418,9 +406,8 @@ void modal_analysis_solver::get_element_stiffness_matrix(Eigen::MatrixXd& elemen
 	if (model_constarints.constraintMap.find(ln.startNode->node_id) == model_constarints.constraintMap.end())
 	{
 		// No constraint at the start node
-		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {1.0, 0.0, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 1.0, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
+		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {1.0, 0.0, 0.0, 0.0 } });
+		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 1.0, 0.0, 0.0 } });
 	}
 	else
 	{
@@ -430,18 +417,16 @@ void modal_analysis_solver::get_element_stiffness_matrix(Eigen::MatrixXd& elemen
 		support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
 
 		// Pin or Roller Support
-		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {support_Lcos, -support_Msin, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {support_Msin, support_Lcos, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
+		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {support_Lcos, -support_Msin, 0.0, 0.0} });
+		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {support_Msin, support_Lcos, 0.0, 0.0 } });
 	}
 
 	// End node support inclination
 	if (model_constarints.constraintMap.find(ln.endNode->node_id) == model_constarints.constraintMap.end())
 	{
 		// No constraint at the end node
-		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 1.0, 0.0, 0.0} });
-		s_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 1.0, 0.0} });
-		s_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
+		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ { 0.0, 0.0, 1.0, 0.0 } });
+		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ { 0.0, 0.0, 0.0, 1.0 } });
 	}
 	else
 	{
@@ -451,14 +436,12 @@ void modal_analysis_solver::get_element_stiffness_matrix(Eigen::MatrixXd& elemen
 		support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
 
 		// Pin or Roller Support
-		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, support_Lcos, -support_Msin, 0.0} });
-		s_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, support_Msin, support_Lcos, 0.0} });
-		s_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
+		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, support_Lcos, -support_Msin } });
+		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, support_Msin, support_Lcos } });
 	}
 
 	// Calculate the element stiffness matrix
 	elementStiffnessMatrix = s_transformation_matrix.transpose() * e_stiffness_matrix * s_transformation_matrix;
-
 }
 
 void modal_analysis_solver::get_global_pointmass_matrix(Eigen::MatrixXd& globalPointMassMatrix,
@@ -478,16 +461,14 @@ void modal_analysis_solver::get_global_pointmass_matrix(Eigen::MatrixXd& globalP
 			// Nodes have point mass
 			nodepointmass_data ptm = model_ptmass.ptmassMap.at(nd.node_id);
 
-			globalPointMassMatrix((nd_map * 3) + 0, (nd_map * 3) + 0) = ptm.ptmass_x;
-			globalPointMassMatrix((nd_map * 3) + 1, (nd_map * 3) + 1) = ptm.ptmass_y;
-			globalPointMassMatrix((nd_map * 3) + 2, (nd_map * 3) + 2) = 0.0;
+			globalPointMassMatrix((nd_map * 2) + 0, (nd_map * 2) + 0) = ptm.ptmass_x;
+			globalPointMassMatrix((nd_map * 2) + 1, (nd_map * 2) + 1) = ptm.ptmass_y;
 		}
 		else
 		{
 			// Nodes doesnt have point mass
-			globalPointMassMatrix((nd_map * 3) + 0, (nd_map * 3) + 0) = 0.0;
-			globalPointMassMatrix((nd_map * 3) + 1, (nd_map * 3) + 1) = 0.0;
-			globalPointMassMatrix((nd_map * 3) + 2, (nd_map * 3) + 2) = 0.0;
+			globalPointMassMatrix((nd_map * 2) + 0, (nd_map * 2) + 0) = 0.0;
+			globalPointMassMatrix((nd_map * 2) + 1, (nd_map * 2) + 1) = 0.0;
 		}
 	}
 
@@ -499,8 +480,6 @@ void modal_analysis_solver::get_global_pointmass_matrix(Eigen::MatrixXd& globalP
 		output_file << std::endl;
 	}
 }
-
-
 
 
 void modal_analysis_solver::get_global_consistentmass_matrix(Eigen::MatrixXd& globalConsistentMassMatrix,
@@ -517,7 +496,7 @@ void modal_analysis_solver::get_global_consistentmass_matrix(Eigen::MatrixXd& gl
 		material_data elementline_material = material_list.at(ln.material_id);
 
 		// Create a matrix for element stiffness matrix
-		Eigen::MatrixXd elementConsistentMassMatrix(6, 6);
+		Eigen::MatrixXd elementConsistentMassMatrix(4, 4);
 		elementConsistentMassMatrix.setZero();
 
 		get_element_consistentmass_matrix(elementConsistentMassMatrix, ln, elementline_material, model_constarints, output_file);
@@ -526,10 +505,10 @@ void modal_analysis_solver::get_global_consistentmass_matrix(Eigen::MatrixXd& gl
 		int sn_id = nodeid_map[ln.startNode->node_id]; // get the ordered map of the start node ID
 		int en_id = nodeid_map[ln.endNode->node_id]; // get the ordered map of the end node ID
 
-		globalConsistentMassMatrix.block<3, 3>(sn_id * 3, sn_id * 3) += elementConsistentMassMatrix.block<3, 3>(0, 0);
-		globalConsistentMassMatrix.block<3, 3>(sn_id * 3, en_id * 3) += elementConsistentMassMatrix.block<3, 3>(0, 3);
-		globalConsistentMassMatrix.block<3, 3>(en_id * 3, sn_id * 3) += elementConsistentMassMatrix.block<3, 3>(3, 0);
-		globalConsistentMassMatrix.block<3, 3>(en_id * 3, en_id * 3) += elementConsistentMassMatrix.block<3, 3>(3, 3);
+		globalConsistentMassMatrix.block<2, 2>(sn_id * 2, sn_id * 2) += elementConsistentMassMatrix.block<2, 2>(0, 0);
+		globalConsistentMassMatrix.block<2, 2>(sn_id * 2, en_id * 2) += elementConsistentMassMatrix.block<2, 2>(0, 2);
+		globalConsistentMassMatrix.block<2, 2>(en_id * 2, sn_id * 2) += elementConsistentMassMatrix.block<2, 2>(2, 0);
+		globalConsistentMassMatrix.block<2, 2>(en_id * 2, en_id * 2) += elementConsistentMassMatrix.block<2, 2>(2, 2);
 	}
 
 	if (print_matrix == true)
@@ -562,42 +541,32 @@ void modal_analysis_solver::get_element_consistentmass_matrix(Eigen::MatrixXd& e
 
 	//_________________________________________________________
 	// Local -> Global transformation matrix
-	Eigen::MatrixXd L_transformation_matrix(6, 6);
+	Eigen::MatrixXd L_transformation_matrix(2, 4);
 	L_transformation_matrix.setZero();
 
-	L_transformation_matrix.row(0) = Eigen::RowVectorXd({ {Lcos, Msin, 0.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(1) = Eigen::RowVectorXd({ {-Msin, Lcos, 0.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, Lcos, Msin, 0.0} });
-	L_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, -Msin, Lcos, 0.0} });
-	L_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
+	L_transformation_matrix.row(0) = Eigen::RowVectorXd({ { Lcos, Msin, 0.0, 0.0 } });
+	L_transformation_matrix.row(1) = Eigen::RowVectorXd({ { 0.0, 0.0, Lcos, Msin } });
 
 	//_________________________________________________________
 	// Local element stiffness matrix
-	Eigen::MatrixXd local_element_consistentmass_matrix(6, 6);
+	Eigen::MatrixXd local_element_consistentmass_matrix(2, 2);
 	local_element_consistentmass_matrix.setZero();
 
-	double k1 = (elementline_material.mat_density * elementline_material.cs_area * eLength) / 420.0f;
-	double k2 = k1 * eLength;
-	double k3 = k1 * (eLength * eLength);
+	double k1 = (elementline_material.mat_density * elementline_material.cs_area * eLength) / 2.0f;
 
-	local_element_consistentmass_matrix.row(0) = Eigen::RowVectorXd({ {140.0 * k1, 0.0, 0.0, 70.0 * k1, 0.0, 0.0} });
-	local_element_consistentmass_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 156.0 * k1, 22.0 * k2, 0.0, 54.0 * k1, -13.0 * k2} });
-	local_element_consistentmass_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 22.0 * k2, 4.0 * k3, 0.0, 13.0 * k2, -3.0 * k3} });
-	local_element_consistentmass_matrix.row(3) = Eigen::RowVectorXd({ {70.0 * k1, 0.0, 0.0, 140.0 * k1, 0.0, 0.0} });
-	local_element_consistentmass_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 54.0 * k1, 13.0 * k2, 0.0, 156.0 * k1, -22.0 * k2} });
-	local_element_consistentmass_matrix.row(5) = Eigen::RowVectorXd({ {0.0, -13.0 * k2, -3.0 * k3, 0.0, -22.0 * k2, 4.0 * k3} });
+	local_element_consistentmass_matrix.row(0) = Eigen::RowVectorXd({ { k1, 0.0 } });
+	local_element_consistentmass_matrix.row(1) = Eigen::RowVectorXd({ { 0.0, k1 } });
 
 	//_________________________________________________________
 	// Transformed element stiffness matrix
-	Eigen::MatrixXd e_consistentMass_matrix(6, 6);
+	Eigen::MatrixXd e_consistentMass_matrix(4, 4);
 	e_consistentMass_matrix.setZero();
 
 	e_consistentMass_matrix = L_transformation_matrix.transpose() * local_element_consistentmass_matrix * L_transformation_matrix;
 	//_________________________________________________________
 
 	// Transformation matrices to include support inclinatation
-	Eigen::MatrixXd s_transformation_matrix(6, 6);
+	Eigen::MatrixXd s_transformation_matrix(4, 4);
 	s_transformation_matrix.setZero(); // support inclination transformation matrix
 
 	int constraint_type;
@@ -609,9 +578,8 @@ void modal_analysis_solver::get_element_consistentmass_matrix(Eigen::MatrixXd& e
 	if (model_constarints.constraintMap.find(ln.startNode->node_id) == model_constarints.constraintMap.end())
 	{
 		// No constraint at the start node
-		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {1.0, 0.0, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 1.0, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
+		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {1.0, 0.0, 0.0, 0.0 } });
+		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 1.0, 0.0, 0.0 } });
 	}
 	else
 	{
@@ -621,18 +589,16 @@ void modal_analysis_solver::get_element_consistentmass_matrix(Eigen::MatrixXd& e
 		support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
 
 		// Pin or Roller Support
-		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {support_Lcos, -support_Msin, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {support_Msin, support_Lcos, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
+		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {support_Lcos, -support_Msin, 0.0, 0.0 } });
+		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {support_Msin, support_Lcos, 0.0, 0.0  } });
 	}
 
 	// End node support inclination
 	if (model_constarints.constraintMap.find(ln.endNode->node_id) == model_constarints.constraintMap.end())
 	{
 		// No constraint at the end node
-		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 1.0, 0.0, 0.0} });
-		s_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 1.0, 0.0} });
-		s_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
+		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ { 0.0, 0.0, 1.0, 0.0 } });
+		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ { 0.0, 0.0, 0.0, 1.0 } });
 	}
 	else
 	{
@@ -642,9 +608,8 @@ void modal_analysis_solver::get_element_consistentmass_matrix(Eigen::MatrixXd& e
 		support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
 
 		// Pin or Roller Support
-		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, support_Lcos, -support_Msin, 0.0} });
-		s_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, support_Msin, support_Lcos, 0.0 } });
-		s_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
+		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ { 0.0, 0.0, support_Lcos, -support_Msin } });
+		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ { 0.0, 0.0, support_Msin, support_Lcos  } });
 	}
 
 	// Calculate the element stiffness matrix
@@ -672,51 +637,28 @@ void modal_analysis_solver::get_global_dof_matrix(Eigen::MatrixXd& globalDOFMatr
 
 			if (cd.constraint_type == 0)
 			{
-				// Fixed End
+				// Pin End
 
-				globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 0.0;
+				globalDOFMatrix.coeffRef((nd_map * 2) + 0, 0) = 0.0;
+				globalDOFMatrix.coeffRef((nd_map * 2) + 1, 0) = 0.0;
 			}
 			else if (cd.constraint_type == 1)
 			{
-				// Fixed Roller end
+				// Pin Roller end
 
-				globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 1.0; // X is free to move
-				globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 0.0;
-
-				reducedDOF = reducedDOF + 1;
-			}
-			else if (cd.constraint_type == 2)
-			{
-				// Pin End
-
-				globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 1.0; // XY Rotation is free to move
+				globalDOFMatrix.coeffRef((nd_map * 2) + 0, 0) = 1.0; // X is free to move
+				globalDOFMatrix.coeffRef((nd_map * 2) + 1, 0) = 0.0;
 
 				reducedDOF = reducedDOF + 1;
-			}
-			else if (cd.constraint_type == 3)
-			{
-				// Pin Roller End
-
-				globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 1.0; // X is free to move
-				globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 1.0; // XY Rotation is free to move
-
-				reducedDOF = reducedDOF + 2;
 			}
 		}
 		else
 		{
 			// Nodes doesnt have Constraint
-			globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 1.0;
-			globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 1.0;
-			globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 1.0;
+			globalDOFMatrix.coeffRef((nd_map * 2) + 0, 0) = 1.0;
+			globalDOFMatrix.coeffRef((nd_map * 2) + 1, 0) = 1.0;
 
-			reducedDOF = reducedDOF + 3;
+			reducedDOF = reducedDOF + 2;
 		}
 	}
 
@@ -873,22 +815,15 @@ int modal_analysis_solver::get_number_of_rigid_body_modes(int num_of_nodes,
 	for (int i = 0; i < num_of_nodes; i++)
 	{
 		// x DOF
-		if (globalDOFMatrix(((i * 3) + 0), 0) == 0)
+		if (globalDOFMatrix(((i * 2) + 0), 0) == 0)
 		{
 			x_free = false;
 		}
 
 		// y DOF
-		if (globalDOFMatrix(((i * 3) + 1), 0) == 0)
+		if (globalDOFMatrix(((i * 2) + 1), 0) == 0)
 		{
 			y_free = false;
-		}
-
-
-		// z DOF
-		if (globalDOFMatrix(((i * 3) + 2), 0) == 0)
-		{
-			xy_free = false;
 		}
 	}
 
@@ -906,13 +841,6 @@ int modal_analysis_solver::get_number_of_rigid_body_modes(int num_of_nodes,
 		// No constraint at y direction
 		rigid_body_modes++;
 	}
-
-	if (xy_free == true)
-	{
-		// No constraint at xy rotation
-		// rigid_body_modes++;
-	}
-	
 
 	return rigid_body_modes;
 }
@@ -968,7 +896,7 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 {
 	// Map the modal analysis results to modal members
 	// Create a global support inclination matrix
-	int numDOF = model_nodes.node_count * 3; // Number of degrees of freedom (2 DOFs per node)
+	int numDOF = model_nodes.node_count * 2; // Number of degrees of freedom (2 DOFs per node)
 	int node_id = 0;
 
 	Eigen::MatrixXd globalSupportInclinationMatrix(numDOF, numDOF);
@@ -988,17 +916,11 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 		if (model_constarints.constraintMap.find(node_id) == model_constarints.constraintMap.end())
 		{
 			// No constraint is in this node
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 0) = 1.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 1) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 2) = 0.0;
+			globalSupportInclinationMatrix.coeffRef((matrix_index * 2) + 0, (matrix_index * 2) + 0) = 1.0;
+			globalSupportInclinationMatrix.coeffRef((matrix_index * 2) + 0, (matrix_index * 2) + 1) = 0.0;
 
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 0) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 1) = 1.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 2) = 0.0;
-
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 0) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 1) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 2) = 1.0;
+			globalSupportInclinationMatrix.coeffRef((matrix_index * 2) + 1, (matrix_index * 2) + 0) = 0.0;
+			globalSupportInclinationMatrix.coeffRef((matrix_index * 2) + 1, (matrix_index * 2) + 1) = 1.0;
 		}
 		else
 		{
@@ -1008,17 +930,11 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 			support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
 
 			// Pin or Roller Support
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 0) = support_Lcos;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 1) = -1.0 * support_Msin;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 2) = 0.0;
+			globalSupportInclinationMatrix.coeffRef((matrix_index * 2) + 0, (matrix_index * 2) + 0) = support_Lcos;
+			globalSupportInclinationMatrix.coeffRef((matrix_index * 2) + 0, (matrix_index * 2) + 1) = -1.0 * support_Msin;
 
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 0) = support_Msin;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 1) = support_Lcos;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 2) = 0.0;
-
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 0) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 1) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 2) = 1.0;
+			globalSupportInclinationMatrix.coeffRef((matrix_index * 2) + 1, (matrix_index * 2) + 0) = support_Msin;
+			globalSupportInclinationMatrix.coeffRef((matrix_index * 2) + 1, (matrix_index * 2) + 1) = support_Lcos;
 		}
 	}
 
@@ -1043,14 +959,13 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 		int matrix_index = nodeid_map[node_id];
 
 		// Modal analysis results
-		std::unordered_map<int, glm::vec3> node_modal_displ;
+		std::unordered_map<int, glm::vec2> node_modal_displ;
 
 		for (int i = 0; i < modal_results.number_of_modes; i++)
 		{
 			// get the appropriate modal displacement of this particular node
-			glm::vec3 modal_displ = glm::vec3(globalEigenVector_transformed((matrix_index * 3) + 0, i),
-				globalEigenVector_transformed((matrix_index * 3) + 1, i),
-				globalEigenVector_transformed((matrix_index * 3) + 2, i));
+			glm::vec2 modal_displ = glm::vec2(globalEigenVector_transformed((matrix_index * 2) + 0, i),
+				globalEigenVector_transformed((matrix_index * 2) + 1, i));
 
 			// add to modal result of this node
 			node_modal_displ.insert({ i,modal_displ });
@@ -1086,11 +1001,11 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 			modal_elementline_store ln = ln_m.second;
 
 			// Get all the modal line data
-			for (auto& mln_hld : ln.hermite_line_data)
+			for (auto& mln_bld : ln.discretized_bar_line_data)
 			{
 				// loop through all the mode line end points
-				glm::vec2 mln_pt1 = mln_hld.pt1_modal_displ[i];
-				glm::vec2 mln_pt2 = mln_hld.pt2_modal_displ[i];
+				glm::vec2 mln_pt1 = mln_bld.pt1_modal_displ[i];
+				glm::vec2 mln_pt2 = mln_bld.pt2_modal_displ[i];
 
 				// Check all the point
 				// Maximum
@@ -1119,7 +1034,6 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 					min_displ = std::abs(std::sqrt((mln_pt2.x * mln_pt2.x) + (mln_pt2.y * mln_pt2.y)));
 				}
 			}
-
 		}
 
 		// Add to the maximum displacement of this mode

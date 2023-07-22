@@ -8,6 +8,7 @@
 #include "../geometry_store/fe_objects/nodeconstraint_list_store.h"
 #include "../geometry_store/fe_objects/nodeload_list_store.h"
 #include "../geometry_store/fe_objects/nodepointmass_list_store.h"
+#include "../geometry_store/fe_objects/nodeinlcond_list_store.h"
 
 // FE Results Modal Analysis
 #include "../geometry_store/modal_result_objects/modal_analysis_result_store.h"
@@ -21,6 +22,7 @@
 #pragma warning (disable : 26451)
 #pragma warning (disable : 26495)
 #pragma warning (disable : 6255)
+#pragma warning (disable : 6294)
 #pragma warning (disable : 26813)
 #pragma warning (disable : 26454)
 
@@ -54,6 +56,7 @@ public:
 		const nodeconstraint_list_store& model_constarints,
 		const nodeload_list_store& model_loads,
 		const nodepointmass_list_store& model_ptmass,
+		const nodeinlcond_list_store& model_inlcond,
 		const std::unordered_map<int, material_data>& material_list,
 		const bool& is_include_consistent_mass_matrix,
 		const modal_analysis_result_store& modal_results,
