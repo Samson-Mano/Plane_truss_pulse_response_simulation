@@ -18,6 +18,7 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 	const nodeinlcond_list_store& model_inlcond,
 	const std::unordered_map<int, material_data>& material_list,
 	const bool& is_include_consistent_mass_matrix,
+	const modal_analysis_solver& md_solver,
 	const modal_analysis_result_store& modal_results,
 	const double total_simulation_time,
 	const double time_interval,
@@ -38,119 +39,23 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 		return;
 	}
 
-	// Create global stiffness, mass and load matrices
-	//___________________________________________________________________________________
-	// Create a node ID map (to create a nodes as ordered and numbered from 0,1,2...n)
-	int i = 0;
-	for (auto& nd : model_nodes.nodeMap)
-	{
-		nodeid_map[nd.first] = i;
-		i++;
-	}
+	// Assign the node id map
+	this->nodeid_map = md_solver.nodeid_map;
 
-	//___________________________________________________________________________________
-	// Create a file to keep track of frequency response matrices
-	std::ofstream output_file;
-	output_file.open("pulse_analysis_results.txt");
+	//--------------------------------------------------------------------------------------------------------------------
+	// Create modal reduced intial condition matrices
+	Eigen::MatrixXd modal_reducedInitialDisplacementMatrix(md_solver.reducedDOF, 1);
+	Eigen::MatrixXd modal_reducedInitialVelocityMatrix(md_solver.reducedDOF, 1);
 
-	//____________________________________________________________________________________________________________________
-	int numDOF = model_nodes.node_count * 3; // Number of degrees of freedom (3 DOFs per node (2 translation and 1 rotation)
-
-	// Global Stiffness Matrix
-	Eigen::MatrixXd globalStiffnessMatrix(numDOF, numDOF);
-	globalStiffnessMatrix.setZero();
-
-	get_global_stiffness_matrix(globalStiffnessMatrix,
-		model_lineelements,
-		material_list,
-		model_constarints,
-		output_file);
-
-
-	//____________________________________________________________________________________________________________________
-	// Global Point Mass Matrix
-	Eigen::MatrixXd globalPointMassMatrix(numDOF, numDOF);
-	globalPointMassMatrix.setZero();
-
-	get_global_pointmass_matrix(globalPointMassMatrix,
+	create_initial_condition_matrices(modal_reducedInitialDisplacementMatrix,
+		modal_reducedInitialVelocityMatrix,
+		model_inlcond,
 		model_nodes,
-		model_ptmass,
-		output_file);
-
-	//____________________________________________________________________________________________________________________
-	// Global Consistent Mass Matrix
-	Eigen::MatrixXd globalConsistentMassMatrix(numDOF, numDOF);
-	globalConsistentMassMatrix.setZero();
-
-	if (is_include_consistent_mass_matrix == true)
-	{
-		get_global_consistentmass_matrix(globalConsistentMassMatrix,
-			model_lineelements,
-			material_list,
-			model_constarints,
-			output_file);
-	}
-
-	//____________________________________________________________________________________________________________________
-	// Global Consistent Mass Matrix
-	Eigen::MatrixXd globalMassMatrix(numDOF, numDOF);
-	globalMassMatrix.setZero();
-
-	globalMassMatrix = globalPointMassMatrix + globalConsistentMassMatrix;
-
-	//____________________________________________________________________________________________________________________
-	// Global DOF Mass Matrix
-	Eigen::MatrixXd globalDOFMatrix(numDOF, 1);
-	globalDOFMatrix.setZero();
-
-	// Determine the size of the reduced stiffness matrix based on the number of unconstrained degrees of freedom
-	int reducedDOF = 0;
-
-	get_global_dof_matrix(globalDOFMatrix,
-		model_nodes,
-		model_constarints,
-		reducedDOF,
-		output_file);
-
-	//____________________________________________________________________________________________________________________
-	// Create Reduced Global Mass and stiffness matrix
-	Eigen::MatrixXd  reduced_globalStiffnessMatrix(reducedDOF, reducedDOF);
-	reduced_globalStiffnessMatrix.setZero();
-
-	// Reduced Global Mass matrix
-	Eigen::MatrixXd reduced_globalMassMatrix(reducedDOF, reducedDOF);
-	reduced_globalMassMatrix.setZero();
-
-	get_reduced_global_matrices(reduced_globalStiffnessMatrix,
-		reduced_globalMassMatrix,
-		globalStiffnessMatrix,
-		globalMassMatrix,
-		globalDOFMatrix,
-		numDOF,
-		output_file);
-
-	//____________________________________________________________________________________________________________________
-	// Modal Decomposition
-
-	// Reduced Eigen Vectors matrix
-	Eigen::MatrixXd reduced_eigenVectorsMatrix(reducedDOF, reducedDOF);
-	reduced_eigenVectorsMatrix.setZero();
-
-	get_reduced_modal_vector_matrix(reduced_eigenVectorsMatrix, modal_results, reducedDOF, output_file);
-
-	//____________________________________________________________________________________________________________________
-	// Create modal matrices
-	Eigen::VectorXd modalMass(reducedDOF);
-	Eigen::VectorXd modalStiff(reducedDOF);
-
-	get_modal_matrices(modalMass,
-		modalStiff,
-		reduced_eigenVectorsMatrix,
-		reduced_globalMassMatrix,
-		reduced_globalStiffnessMatrix,
-		reducedDOF,
-		output_file);
-
+		md_solver.globalDOFMatrix,
+		md_solver.reduced_eigenVectorsMatrix,
+		md_solver.numDOF,
+		md_solver.reducedDOF);
+	
 	//____________________________________________________________________________________________________________________
 	// Create the Pulse force data for all the individual 
 	std::vector<pulse_load_data> pulse_loads(model_loads.load_count);
@@ -163,26 +68,14 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 		pulse_loads[k].load_id = k;
 		create_pulse_load_matrices(pulse_loads[k],
 			ld,
-			model_lineelements,
-			globalDOFMatrix,
-			reduced_eigenVectorsMatrix,
-			numDOF,
-			reducedDOF);
+			model_nodes,
+			md_solver.globalDOFMatrix,
+			md_solver.reduced_eigenVectorsMatrix,
+			md_solver.numDOF,
+			md_solver.reducedDOF);
 
 		k++; // iterate load id
 	}
-
-	//____________________________________________________________________________________________________________________
-	// Create the global support inclination matrix
-	Eigen::MatrixXd globalSupportInclinationMatrix(numDOF, numDOF);
-	globalSupportInclinationMatrix.setZero();
-
-
-	get_globalSupportInclinationMatrix(globalSupportInclinationMatrix,
-		model_nodes,
-		model_constarints,
-		numDOF,
-		output_file);
 
 	//____________________________________________________________________________________________________________________
 	// Pulse Response
@@ -192,12 +85,22 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 	for (double time_t = 0.0; time_t <= total_simulation_time; time_t = time_t + time_interval)
 	{
 
-		Eigen::MatrixXd displ_ampl_RespMatrix_reduced_b4eig_trans(reducedDOF, 1);
+		Eigen::MatrixXd displ_ampl_RespMatrix_reduced_b4eig_trans(md_solver.reducedDOF, 1);
 		displ_ampl_RespMatrix_reduced_b4eig_trans.setZero();
 
-		for (int i = 0; i < reducedDOF; i++)
+		for (int i = 0; i < md_solver.reducedDOF; i++)
 		{
-			double total_displ_resp = 0.0;
+			double displ_resp_initial = 0.0; // Displacement response due to initial condition
+
+			get_steady_state_initial_condition_soln(displ_resp_initial,
+				time_t,
+				md_solver.modalMass(i),
+				md_solver.modalStiff(i),
+				modal_reducedInitialDisplacementMatrix(i, 0),
+				modal_reducedInitialVelocityMatrix(i, 0));
+
+			//_______________________________________________________________________
+			double displ_resp_force = 0.0; // Displacement response due to pulse force
 
 			// get all the loads
 			for (auto& pulse_load : pulse_loads)
@@ -207,39 +110,40 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 
 				get_steady_state_pulse_soln(at_force_displ_resp,
 					time_t,
-					modalMass(i),
-					modalStiff(i),
+					md_solver.modalMass(i),
+					md_solver.modalStiff(i),
 					pulse_load.modal_reducedLoadamplMatrix(i, 0),
 					pulse_load.load_start_time,
 					pulse_load.load_end_time);
 
-				total_displ_resp = total_displ_resp + at_force_displ_resp;
+				displ_resp_force = displ_resp_force + at_force_displ_resp;
 			}
 
 			// Add to the modal displ matrix
-			displ_ampl_RespMatrix_reduced_b4eig_trans.coeffRef(i, 0) = total_displ_resp;
+			displ_ampl_RespMatrix_reduced_b4eig_trans.coeffRef(i, 0) = displ_resp_initial + displ_resp_force ;
 		}
 
 		// Apply modal de-transformation
-		Eigen::MatrixXd displ_ampl_RespMatrix_reduced(reducedDOF, 1);
+		Eigen::MatrixXd displ_ampl_RespMatrix_reduced(md_solver.reducedDOF, 1);
 		displ_ampl_RespMatrix_reduced.setZero();
 
-		displ_ampl_RespMatrix_reduced = reduced_eigenVectorsMatrix * displ_ampl_RespMatrix_reduced_b4eig_trans;
+		displ_ampl_RespMatrix_reduced = md_solver.reduced_eigenVectorsMatrix * displ_ampl_RespMatrix_reduced_b4eig_trans;
 
 		// Extend reduced modal displ matrix to global modal displ matrix
-		Eigen::MatrixXd displ_ampl_RespMatrix_b4supp_trans(numDOF, 1);
+		Eigen::MatrixXd displ_ampl_RespMatrix_b4supp_trans(md_solver.numDOF, 1);
 		displ_ampl_RespMatrix_b4supp_trans.setZero();
 
 		get_global_resp_matrix(displ_ampl_RespMatrix_b4supp_trans,
-			displ_ampl_RespMatrix_reduced, globalDOFMatrix,
-			numDOF,
-			reducedDOF);
+			displ_ampl_RespMatrix_reduced,
+			md_solver.globalDOFMatrix,
+			md_solver.numDOF,
+			md_solver.reducedDOF);
 
 		// Apply support transformation
-		Eigen::MatrixXd displ_ampl_RespMatrix(numDOF, 1);
+		Eigen::MatrixXd displ_ampl_RespMatrix(md_solver.numDOF, 1);
 		displ_ampl_RespMatrix.setZero();
 
-		displ_ampl_RespMatrix = globalSupportInclinationMatrix * displ_ampl_RespMatrix_b4supp_trans;
+		displ_ampl_RespMatrix = md_solver.globalSupportInclinationMatrix * displ_ampl_RespMatrix_b4supp_trans;
 
 		// Store the results to node results
 		for (auto& nd_m : model_nodes.nodeMap)
@@ -283,582 +187,75 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 
 	// Analysis complete
 	is_pulse_analysis_complete = true;
-
 }
 
-
-void pulse_analysis_solver::get_global_stiffness_matrix(Eigen::MatrixXd& globalStiffnessMatrix,
-	const elementline_list_store& model_lineelements,
-	const std::unordered_map<int, material_data>& material_list,
-	const nodeconstraint_list_store& model_constarints, std::ofstream& output_file)
-{
-	// Create global stiffness matrix
-	for (auto& ln_m : model_lineelements.elementlineMap)
-	{
-		// Create the element stiffness matrix
-		elementline_store ln = ln_m.second;
-		material_data elementline_material = material_list.at(ln.material_id);
-
-		// Create a matrix for element stiffness matrix
-		Eigen::MatrixXd elementStiffnessMatrix(6, 6);
-		elementStiffnessMatrix.setZero();
-
-		get_element_stiffness_matrix(elementStiffnessMatrix, ln, elementline_material, model_constarints, output_file);
-
-		// Get the Node ID
-		int sn_id = nodeid_map[ln.startNode->node_id]; // get the ordered map of the start node ID
-		int en_id = nodeid_map[ln.endNode->node_id]; // get the ordered map of the end node ID
-
-		globalStiffnessMatrix.block<3, 3>(sn_id * 3, sn_id * 3) += elementStiffnessMatrix.block<3, 3>(0, 0);
-		globalStiffnessMatrix.block<3, 3>(sn_id * 3, en_id * 3) += elementStiffnessMatrix.block<3, 3>(0, 3);
-		globalStiffnessMatrix.block<3, 3>(en_id * 3, sn_id * 3) += elementStiffnessMatrix.block<3, 3>(3, 0);
-		globalStiffnessMatrix.block<3, 3>(en_id * 3, en_id * 3) += elementStiffnessMatrix.block<3, 3>(3, 3);
-	}
-}
-
-void pulse_analysis_solver::get_element_stiffness_matrix(Eigen::MatrixXd& elementStiffnessMatrix,
-	const elementline_store& ln,
-	const material_data& elementline_material,
-	const nodeconstraint_list_store& model_constarints,
-	std::ofstream& output_file)
-{
-	// Get element stiffness matrix
-	// Compute the differences in x and y coordinates
-	double dx = ln.endNode->node_pt.x - ln.startNode->node_pt.x;
-	double dy = -1.0 * (ln.endNode->node_pt.y - ln.startNode->node_pt.y);
-
-	// Compute the length of the truss element
-	double eLength = std::sqrt((dx * dx) + (dy * dy));
-
-	// Compute the direction cosines
-	double Lcos = (dx / eLength);
-	double Msin = (dy / eLength);
-
-	//_________________________________________________________
-	// Local -> Global transformation matrix
-	Eigen::MatrixXd L_transformation_matrix(6, 6);
-	L_transformation_matrix.setZero();
-
-	L_transformation_matrix.row(0) = Eigen::RowVectorXd({ {Lcos, Msin, 0.0, 0.0, 0.0, 0.0 } });
-	L_transformation_matrix.row(1) = Eigen::RowVectorXd({ { -Msin, Lcos, 0.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, Lcos, Msin, 0.0} });
-	L_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, -Msin, Lcos, 0.0} });
-	L_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
-
-
-	//_________________________________________________________
-	// Local element stiffness matrix
-	Eigen::MatrixXd local_element_stiffness_matrix(6, 6);
-	local_element_stiffness_matrix.setZero();
-
-	double k1 = (elementline_material.youngs_mod * elementline_material.cs_area) / eLength;
-	double k2 = (1.0) / (eLength * eLength * eLength);
-	double k3 = (1.0) / (eLength * eLength);
-	double k4 = (1.0) / eLength;
-
-	local_element_stiffness_matrix.row(0) = Eigen::RowVectorXd({ {k1, 0.0, 0.0, -1.0 * k1, 0.0, 0.0} });
-	local_element_stiffness_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 12.0 * k2, 6.0 * k3, 0.0, -12.0 * k2, 6.0 * k3} });
-	local_element_stiffness_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 6.0 * k3, 4.0 * k4, 0.0, -6.0 * k3, 2.0 * k4} });
-	local_element_stiffness_matrix.row(3) = Eigen::RowVectorXd({ {-1.0 * k1, 0.0, 0.0, k1, 0.0, 0.0} });
-	local_element_stiffness_matrix.row(4) = Eigen::RowVectorXd({ {0.0, -12.0 * k2, -6.0 * k3, 0.0, 12.0 * k2, -6.0 * k3} });
-	local_element_stiffness_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 6.0 * k3, 2.0 * k4, 0.0, -6.0 * k3, 4.0 * k4} });
-
-	//_________________________________________________________
-	// Transformed element stiffness matrix
-	Eigen::MatrixXd e_stiffness_matrix(6, 6);
-	e_stiffness_matrix.setZero();
-
-	e_stiffness_matrix = L_transformation_matrix.transpose() * local_element_stiffness_matrix * L_transformation_matrix;
-	//_________________________________________________________
-
-	// Transformation matrices to include support inclinatation
-	Eigen::MatrixXd s_transformation_matrix(6, 6);
-	s_transformation_matrix.setZero(); // support inclination transformation matrix
-
-	int constraint_type;
-	double constraint_angle_rad;
-	double support_Lcos;
-	double support_Msin;
-
-	// Start node support inclination
-	if (model_constarints.constraintMap.find(ln.startNode->node_id) == model_constarints.constraintMap.end())
-	{
-		// No constraint at the start node
-		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {1.0, 0.0, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 1.0, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
-	}
-	else
-	{
-		constraint_type = model_constarints.constraintMap.at(ln.startNode->node_id).constraint_type; // Constrint type (0 - pin support, 1 - roller support)
-		constraint_angle_rad = (model_constarints.constraintMap.at(ln.startNode->node_id).constraint_angle - 90.0) * (m_pi / 180.0f); // Constrint angle in radians
-		support_Lcos = std::cos(constraint_angle_rad); // cosine of support inclination
-		support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
-
-		// Pin or Roller Support
-		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {support_Lcos, -support_Msin, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {support_Msin, support_Lcos, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
-	}
-
-	// End node support inclination
-	if (model_constarints.constraintMap.find(ln.endNode->node_id) == model_constarints.constraintMap.end())
-	{
-		// No constraint at the end node
-		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 1.0, 0.0, 0.0} });
-		s_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 1.0, 0.0} });
-		s_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
-	}
-	else
-	{
-		constraint_type = model_constarints.constraintMap.at(ln.endNode->node_id).constraint_type; // Constrint type (0 - pin support, 1 - roller support)
-		constraint_angle_rad = (model_constarints.constraintMap.at(ln.endNode->node_id).constraint_angle - 90.0) * (m_pi / 180.0f); // Constrint angle in radians
-		support_Lcos = std::cos(constraint_angle_rad); // cosine of support inclination
-		support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
-
-		// Pin or Roller Support
-		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, support_Lcos, -support_Msin, 0.0} });
-		s_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, support_Msin, support_Lcos, 0.0} });
-		s_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
-	}
-
-	// Calculate the element stiffness matrix
-	elementStiffnessMatrix = s_transformation_matrix.transpose() * e_stiffness_matrix * s_transformation_matrix;
-
-}
-
-void pulse_analysis_solver::get_global_pointmass_matrix(Eigen::MatrixXd& globalPointMassMatrix,
+void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& modal_reducedInitialDisplacementMatrix,
+	Eigen::MatrixXd& modal_reducedInitialVelocityMatrix,
+	const nodeinlcond_list_store& model_inlcond,
 	const nodes_list_store& model_nodes,
-	const nodepointmass_list_store& model_ptmass,
-	std::ofstream& output_file)
-{
-	// Create a global point mass matrix
-	for (auto& nd_m : model_nodes.nodeMap)
-	{
-		// Get the node data
-		node_store nd = nd_m.second;
-		int nd_map = nodeid_map[nd.node_id]; // get the ordered map of the node ID
-
-		if (model_ptmass.ptmassMap.find(nd.node_id) != model_ptmass.ptmassMap.end())
-		{
-			// Nodes have point mass
-			nodepointmass_data ptm = model_ptmass.ptmassMap.at(nd.node_id);
-
-			globalPointMassMatrix((nd_map * 3) + 0, (nd_map * 3) + 0) = ptm.ptmass_x;
-			globalPointMassMatrix((nd_map * 3) + 1, (nd_map * 3) + 1) = ptm.ptmass_y;
-			globalPointMassMatrix((nd_map * 3) + 2, (nd_map * 3) + 2) = 0.0;
-		}
-		else
-		{
-			// Nodes doesnt have point mass
-			globalPointMassMatrix((nd_map * 3) + 0, (nd_map * 3) + 0) = 0.0;
-			globalPointMassMatrix((nd_map * 3) + 1, (nd_map * 3) + 1) = 0.0;
-			globalPointMassMatrix((nd_map * 3) + 2, (nd_map * 3) + 2) = 0.0;
-		}
-	}
-}
-
-
-void pulse_analysis_solver::get_global_consistentmass_matrix(Eigen::MatrixXd& globalConsistentMassMatrix,
-	const elementline_list_store& model_lineelements,
-	const std::unordered_map<int, material_data>& material_list,
-	const nodeconstraint_list_store& model_constarints,
-	std::ofstream& output_file)
-{
-	// Create global consistent mass matrix
-	for (auto& ln_m : model_lineelements.elementlineMap)
-	{
-		// Create the element stiffness matrix
-		elementline_store ln = ln_m.second;
-		material_data elementline_material = material_list.at(ln.material_id);
-
-		// Create a matrix for element stiffness matrix
-		Eigen::MatrixXd elementConsistentMassMatrix(6, 6);
-		elementConsistentMassMatrix.setZero();
-
-		get_element_consistentmass_matrix(elementConsistentMassMatrix, ln, elementline_material, model_constarints, output_file);
-
-		// Get the Node ID
-		int sn_id = nodeid_map[ln.startNode->node_id]; // get the ordered map of the start node ID
-		int en_id = nodeid_map[ln.endNode->node_id]; // get the ordered map of the end node ID
-
-		globalConsistentMassMatrix.block<3, 3>(sn_id * 3, sn_id * 3) += elementConsistentMassMatrix.block<3, 3>(0, 0);
-		globalConsistentMassMatrix.block<3, 3>(sn_id * 3, en_id * 3) += elementConsistentMassMatrix.block<3, 3>(0, 3);
-		globalConsistentMassMatrix.block<3, 3>(en_id * 3, sn_id * 3) += elementConsistentMassMatrix.block<3, 3>(3, 0);
-		globalConsistentMassMatrix.block<3, 3>(en_id * 3, en_id * 3) += elementConsistentMassMatrix.block<3, 3>(3, 3);
-	}
-}
-
-void pulse_analysis_solver::get_element_consistentmass_matrix(Eigen::MatrixXd& elementConsistentMassMatrix,
-	const elementline_store& ln,
-	const material_data& elementline_material,
-	const nodeconstraint_list_store& model_constarints,
-	std::ofstream& output_file)
-{
-	// Create element consistent mass matrix
-	// Compute the differences in x and y coordinates
-	double dx = ln.endNode->node_pt.x - ln.startNode->node_pt.x;
-	double dy = -1.0 * (ln.endNode->node_pt.y - ln.startNode->node_pt.y);
-
-	// Compute the length of the frame element
-	double eLength = std::sqrt((dx * dx) + (dy * dy));
-
-	// Compute the direction cosines
-	double Lcos = (dx / eLength);
-	double Msin = (dy / eLength);
-
-	//_________________________________________________________
-	// Local -> Global transformation matrix
-	Eigen::MatrixXd L_transformation_matrix(6, 6);
-	L_transformation_matrix.setZero();
-
-	L_transformation_matrix.row(0) = Eigen::RowVectorXd({ {Lcos, Msin, 0.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(1) = Eigen::RowVectorXd({ {-Msin, Lcos, 0.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
-	L_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, Lcos, Msin, 0.0} });
-	L_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, -Msin, Lcos, 0.0} });
-	L_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
-
-	//_________________________________________________________
-	// Local element stiffness matrix
-	Eigen::MatrixXd local_element_consistentmass_matrix(6, 6);
-	local_element_consistentmass_matrix.setZero();
-
-	double k1 = (elementline_material.mat_density * elementline_material.cs_area * eLength) / 420.0f;
-	double k2 = k1 * eLength;
-	double k3 = k1 * (eLength * eLength);
-
-	local_element_consistentmass_matrix.row(0) = Eigen::RowVectorXd({ {140.0 * k1, 0.0, 0.0, 70.0 * k1, 0.0, 0.0} });
-	local_element_consistentmass_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 156.0 * k1, 22.0 * k2, 0.0, 54.0 * k1, -13.0 * k2} });
-	local_element_consistentmass_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 22.0 * k2, 4.0 * k3, 0.0, 13.0 * k2, -3.0 * k3} });
-	local_element_consistentmass_matrix.row(3) = Eigen::RowVectorXd({ {70.0 * k1, 0.0, 0.0, 140.0 * k1, 0.0, 0.0} });
-	local_element_consistentmass_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 54.0 * k1, 13.0 * k2, 0.0, 156.0 * k1, -22.0 * k2} });
-	local_element_consistentmass_matrix.row(5) = Eigen::RowVectorXd({ {0.0, -13.0 * k2, -3.0 * k3, 0.0, -22.0 * k2, 4.0 * k3} });
-
-	//_________________________________________________________
-	// Transformed element stiffness matrix
-	Eigen::MatrixXd e_consistentMass_matrix(6, 6);
-	e_consistentMass_matrix.setZero();
-
-	e_consistentMass_matrix = L_transformation_matrix.transpose() * local_element_consistentmass_matrix * L_transformation_matrix;
-	//_________________________________________________________
-
-	// Transformation matrices to include support inclinatation
-	Eigen::MatrixXd s_transformation_matrix(6, 6);
-	s_transformation_matrix.setZero(); // support inclination transformation matrix
-
-	int constraint_type;
-	double constraint_angle_rad;
-	double support_Lcos;
-	double support_Msin;
-
-	// Start node support inclination
-	if (model_constarints.constraintMap.find(ln.startNode->node_id) == model_constarints.constraintMap.end())
-	{
-		// No constraint at the start node
-		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {1.0, 0.0, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {0.0, 1.0, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
-	}
-	else
-	{
-		constraint_type = model_constarints.constraintMap.at(ln.startNode->node_id).constraint_type; // Constrint type (0 - pin support, 1 - roller support)
-		constraint_angle_rad = (model_constarints.constraintMap.at(ln.startNode->node_id).constraint_angle - 90.0) * (m_pi / 180.0f); // Constrint angle in radians
-		support_Lcos = std::cos(constraint_angle_rad); // cosine of support inclination
-		support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
-
-		// Pin or Roller Support
-		s_transformation_matrix.row(0) = Eigen::RowVectorXd({ {support_Lcos, -support_Msin, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(1) = Eigen::RowVectorXd({ {support_Msin, support_Lcos, 0.0, 0.0, 0.0, 0.0} });
-		s_transformation_matrix.row(2) = Eigen::RowVectorXd({ {0.0, 0.0, 1.0, 0.0, 0.0, 0.0} });
-	}
-
-	// End node support inclination
-	if (model_constarints.constraintMap.find(ln.endNode->node_id) == model_constarints.constraintMap.end())
-	{
-		// No constraint at the end node
-		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 1.0, 0.0, 0.0} });
-		s_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 1.0, 0.0} });
-		s_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
-	}
-	else
-	{
-		constraint_type = model_constarints.constraintMap.at(ln.endNode->node_id).constraint_type; // Constrint type (0 - pin support, 1 - roller support)
-		constraint_angle_rad = (model_constarints.constraintMap.at(ln.endNode->node_id).constraint_angle - 90.0) * (m_pi / 180.0f); // Constrint angle in radians
-		support_Lcos = std::cos(constraint_angle_rad); // cosine of support inclination
-		support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
-
-		// Pin or Roller Support
-		s_transformation_matrix.row(3) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, support_Lcos, -support_Msin, 0.0} });
-		s_transformation_matrix.row(4) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, support_Msin, support_Lcos, 0.0 } });
-		s_transformation_matrix.row(5) = Eigen::RowVectorXd({ {0.0, 0.0, 0.0, 0.0, 0.0, 1.0} });
-	}
-
-	// Calculate the element stiffness matrix
-	elementConsistentMassMatrix = s_transformation_matrix.transpose() * e_consistentMass_matrix * s_transformation_matrix;
-}
-
-void pulse_analysis_solver::get_global_dof_matrix(Eigen::MatrixXd& globalDOFMatrix,
-	const nodes_list_store& model_nodes,
-	const nodeconstraint_list_store& model_constarints,
-	int& reducedDOF,
-	std::ofstream& output_file)
-{
-	// Create global DOF Matrix
-	for (auto& nd_m : model_nodes.nodeMap)
-	{
-		// Get the node data
-		node_store nd = nd_m.second;
-		int nd_map = nodeid_map[nd.node_id]; // get the ordered map of the node ID
-
-		if (model_constarints.constraintMap.find(nd.node_id) != model_constarints.constraintMap.end())
-		{
-			// Nodes have point mass
-			constraint_data cd = model_constarints.constraintMap.at(nd.node_id);
-
-			if (cd.constraint_type == 0)
-			{
-				// Fixed End
-
-				globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 0.0;
-			}
-			else if (cd.constraint_type == 1)
-			{
-				// Fixed Roller end
-
-				globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 1.0; // X is free to move
-				globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 0.0;
-
-				reducedDOF = reducedDOF + 1;
-			}
-			else if (cd.constraint_type == 2)
-			{
-				// Pin End
-
-				globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 1.0; // XY Rotation is free to move
-
-				reducedDOF = reducedDOF + 1;
-			}
-			else if (cd.constraint_type == 3)
-			{
-				// Pin Roller End
-
-				globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 1.0; // X is free to move
-				globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 0.0;
-				globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 1.0; // XY Rotation is free to move
-
-				reducedDOF = reducedDOF + 2;
-			}
-		}
-		else
-		{
-			// Nodes doesnt have Constraint
-			globalDOFMatrix.coeffRef((nd_map * 3) + 0, 0) = 1.0;
-			globalDOFMatrix.coeffRef((nd_map * 3) + 1, 0) = 1.0;
-			globalDOFMatrix.coeffRef((nd_map * 3) + 2, 0) = 1.0;
-
-			reducedDOF = reducedDOF + 3;
-		}
-	}
-}
-
-void pulse_analysis_solver::get_reduced_global_matrices(Eigen::MatrixXd& reduced_globalStiffnessMatrix,
-	Eigen::MatrixXd& reduced_globalMassMatrix,
-	const Eigen::MatrixXd& globalStiffnessMatrix,
-	const Eigen::MatrixXd& globalMassMatrix,
 	const Eigen::MatrixXd& globalDOFMatrix,
-	const int& numDOF,
-	std::ofstream& output_file)
-{
-	// Curtailment of Global stiffness and Global force matrix based on DOF
-	// Get the reduced global stiffness matrix
-	int r = 0;
-	int s = 0;
-
-	// Loop throug the Degree of freedom of indices
-	for (int i = 0; i < numDOF; i++)
-	{
-		if (globalDOFMatrix(i, 0) == 0)
-		{
-			// constrained row index, so skip
-			continue;
-		}
-		else
-		{
-			s = 0;
-			for (int j = 0; j < numDOF; j++)
-			{
-				if (globalDOFMatrix(j, 0) == 0)
-				{
-					// constrained column index, so skip
-					continue;
-				}
-				else
-				{
-					// Get the reduced matrices
-					reduced_globalMassMatrix.coeffRef(r, s) = globalMassMatrix.coeffRef(i, j);
-					reduced_globalStiffnessMatrix.coeffRef(r, s) = globalStiffnessMatrix.coeffRef(i, j);
-					s++;
-				}
-			}
-
-			// reduced_globalLoadMatrix.coeffRef(r, 0) = globalLoadMatrix(i, 0);
-			r++;
-		}
-	}
-
-	if (print_matrix == true)
-	{
-		// Print the Reduced Global Stiffness, Global Mass and Global Force matrix
-		output_file << "Reduced Global Stiffness Matrix" << std::endl;
-		output_file << reduced_globalStiffnessMatrix << std::endl;
-		output_file << std::endl;
-
-		output_file << "Reduced Global Mass Matrix" << std::endl;
-		output_file << reduced_globalMassMatrix << std::endl;
-		output_file << std::endl;
-	}
-}
-
-void pulse_analysis_solver::get_modal_matrices(Eigen::VectorXd& modalMass,
-	Eigen::VectorXd& modalStiff,
 	const Eigen::MatrixXd& reduced_eigenVectorsMatrix,
-	const Eigen::MatrixXd& reduced_globalMassMatrix,
-	const Eigen::MatrixXd& reduced_globalStiffnessMatrix,
-	const int& reducedDOF,
-	std::ofstream& output_file)
-{
-	// Get the modal matrices
-	Eigen::MatrixXd modalMassMatrix(reducedDOF, reducedDOF);
-	modalMassMatrix.setZero();
-
-	modalMassMatrix = reduced_eigenVectorsMatrix.transpose() * reduced_globalMassMatrix * reduced_eigenVectorsMatrix;
-
-	// Create modal stiffness matrix
-	Eigen::MatrixXd modalStiffMatrix(reducedDOF, reducedDOF);
-	modalStiffMatrix.setZero();
-
-	modalStiffMatrix = reduced_eigenVectorsMatrix.transpose() * reduced_globalStiffnessMatrix * reduced_eigenVectorsMatrix;
-
-	// Create the modal vectors
-	modalMass = modalMassMatrix.diagonal();
-	modalStiff = modalStiffMatrix.diagonal();
-
-	if (print_matrix == true)
-	{
-		// Print the Modal Mass Matrix
-		output_file << "Modal Mass Matrix" << std::endl;
-		output_file << modalMassMatrix << std::endl;
-		output_file << std::endl;
-
-		// Print the Modal Stiffness matrix
-		output_file << "Modal Stiffness Matrix" << std::endl;
-		output_file << modalStiffMatrix << std::endl;
-		output_file << std::endl;
-	}
-}
-
-void pulse_analysis_solver::get_reduced_modal_vector_matrix(Eigen::MatrixXd& reduced_eigenVectorsMatrix,
-	const modal_analysis_result_store& modal_results,
-	int& reducedDOF,
-	std::ofstream& output_file)
-{
-
-	// Get the global eigen vectors matrix
-	for (int i = 0; i < reducedDOF; i++)
-	{
-		std::vector<double> eigen_vector_column = modal_results.eigen_vectors_reduced.at(i);
-		for (int j = 0; j < reducedDOF; j++)
-		{
-			reduced_eigenVectorsMatrix.coeffRef(j, i) = eigen_vector_column[j];
-		}
-	}
-
-	if (print_matrix == true)
-	{
-		// Print the Reduced Global Eigen Vector matrix
-		output_file << "Reduced Global EigenVector Matrix" << std::endl;
-		output_file << reduced_eigenVectorsMatrix << std::endl;
-		output_file << std::endl;
-	}
-}
-
-
-void pulse_analysis_solver::get_globalSupportInclinationMatrix(Eigen::MatrixXd& globalSupportInclinationMatrix,
-	const nodes_list_store& model_nodes,
-	const nodeconstraint_list_store& model_constarints,
 	const int& numDOF,
-	std::ofstream& output_file)
+	const int& reducedDOF)
 {
-	// Create the global support inclination matrix
-	int node_id = 0;
+	// Create a global initial condition matrix
+	Eigen::MatrixXd globalInitialDisplacementMatrix(numDOF, 1);
+	Eigen::MatrixXd globalInitialVelocityMatrix(numDOF, 1);
 
-	// Transform the Nodal results with support inclination
-	double constraint_angle_rad = 0.0;
-	double support_Lcos = 0.0;
-	double support_Msin = 0.0;
-
-	for (auto& nd_m : model_nodes.nodeMap)
+	for (auto& inlc_m : model_inlcond.inlcondMap)
 	{
-		node_id = nd_m.first;
-		int matrix_index = nodeid_map[node_id];
+		nodeinl_condition_data inlc = inlc_m.second;
 
+		// get the matrix id
+		int n_id = nodeid_map[inlc.node_id]; // get the ordered map of the start node ID
 
-		if (model_constarints.constraintMap.find(node_id) == model_constarints.constraintMap.end())
-		{
-			// No constraint is in this node
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 0) = 1.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 1) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 2) = 0.0;
+		// Create a node initial displacement matrix
+		Eigen::MatrixXd nodeinitialDisplacementMatrix(2, 1);
+		nodeinitialDisplacementMatrix.setZero();
 
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 0) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 1) = 1.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 2) = 0.0;
+		nodeinitialDisplacementMatrix.coeffRef(0, 0) = inlc.inl_displacement_x;
+		nodeinitialDisplacementMatrix.coeffRef(1, 0) = inlc.inl_displacement_y;
 
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 0) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 1) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 2) = 1.0;
-		}
-		else
-		{
-			// Constraint present in this node
-			constraint_angle_rad = (model_constarints.constraintMap.at(node_id).constraint_angle - 90.0f) * (m_pi / 180.0f); // Constrint angle in radians
-			support_Lcos = std::cos(constraint_angle_rad); // cosine of support inclination
-			support_Msin = std::sin(constraint_angle_rad); // sine of support inclination
+		// global initial displacement matrix
+		globalInitialDisplacementMatrix.block<2, 1>(n_id * 2, 0) += nodeinitialDisplacementMatrix.block<2, 1>(0, 0);
 
-			// Pin or Roller Support
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 0) = support_Lcos;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 1) = -1.0 * support_Msin;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 0, (matrix_index * 3) + 2) = 0.0;
+		// Create a node initial velocity matrix
+		Eigen::MatrixXd nodeinitialVelocityMatrix(2, 1);
+		nodeinitialVelocityMatrix.setZero();
 
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 0) = support_Msin;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 1) = support_Lcos;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 1, (matrix_index * 3) + 2) = 0.0;
+		nodeinitialVelocityMatrix.coeffRef(0, 0) = inlc.inl_velocity_x;
+		nodeinitialVelocityMatrix.coeffRef(1, 0) = inlc.inl_velocity_y;
 
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 0) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 1) = 0.0;
-			globalSupportInclinationMatrix.coeffRef((matrix_index * 3) + 2, (matrix_index * 3) + 2) = 1.0;
-		}
+		// global initial velocity matrix
+		globalInitialVelocityMatrix.block<2, 1>(n_id * 2, 0) += nodeinitialVelocityMatrix.block<2, 1>(0, 0);
 	}
 
-	if (print_matrix == true)
-	{
-		// Print the Global support inclination matrix
-		output_file << "Global Support Inclination Matrix" << std::endl;
-		output_file << globalSupportInclinationMatrix << std::endl;
-		output_file << std::endl;
-	}
+	// Reduce the intial condition matrix with the degree of freedom 
+	Eigen::MatrixXd reducedInitialDisplacementMatrix(reducedDOF, 1);
+	Eigen::MatrixXd reducedInitialVelocityMatrix(reducedDOF, 1);
+
+	// reduced initial displacement matrix
+	get_reduced_global_matrix(reducedInitialDisplacementMatrix,
+		globalInitialDisplacementMatrix,
+		globalDOFMatrix,
+		numDOF,
+		reducedDOF);
+
+	// reduced initial velocity matrix
+	get_reduced_global_matrix(reducedInitialVelocityMatrix,
+		globalInitialVelocityMatrix,
+		globalDOFMatrix,
+		numDOF,
+		reducedDOF);
+
+	// apply modal decomposition of the initial displacements
+	modal_reducedInitialDisplacementMatrix = reduced_eigenVectorsMatrix * reducedInitialDisplacementMatrix;
+	modal_reducedInitialVelocityMatrix = reduced_eigenVectorsMatrix * reducedInitialVelocityMatrix;
 }
 
 void pulse_analysis_solver::create_pulse_load_matrices(pulse_load_data& pulse_loads,
 	const load_data& ld,
-	const elementline_list_store& model_lineelements,
+	const nodes_list_store& model_nodes,
 	const Eigen::MatrixXd& globalDOFMatrix,
 	const Eigen::MatrixXd& reduced_eigenVectorsMatrix,
 	const int& numDOF,
@@ -866,24 +263,29 @@ void pulse_analysis_solver::create_pulse_load_matrices(pulse_load_data& pulse_lo
 {
 	// Create the global load amplitude matrix
 	// Extract the line in which the load is applied
-	elementline_store ln = model_lineelements.elementlineMap.at(ld.node_id);
+	node_store nd = model_nodes.nodeMap.at(ld.node_id);
 
 	// Get the Matrix row ID
-	int sn_id = nodeid_map[ln.startNode->node_id]; // get the ordered map of the start node ID
-	int en_id = nodeid_map[ln.endNode->node_id]; // get the ordered map of the end node ID
+	int n_id = nodeid_map[nd.node_id]; // get the ordered map of the start node ID
 
 	// Create a matrix for element load matrix
-	Eigen::MatrixXd elementLoadMatrix(6, 1);
-	elementLoadMatrix.setZero();
+	Eigen::MatrixXd nodeLoadMatrix(2, 1);
+	nodeLoadMatrix.setZero();
 
-	get_element_load_matrix(elementLoadMatrix, ln, ld);
+	double load_val = ld.load_value; // Load value
+	double load_angle_rad = ld.load_angle * (m_pi / 180.0f);
+
+	double f_x = load_val * std::cos(load_angle_rad);
+	double f_y = load_val * std::sin(load_angle_rad);
+
+	nodeLoadMatrix.coeffRef(0, 0) = f_x;
+	nodeLoadMatrix.coeffRef(1, 0) = f_y;
 
 	// global load matrix
 	Eigen::MatrixXd globalLoadamplMatrix(numDOF, 1);
 	globalLoadamplMatrix.setZero();
 
-	globalLoadamplMatrix.block<3, 1>(sn_id * 3, 0) += elementLoadMatrix.block<3, 1>(0, 0);
-	globalLoadamplMatrix.block<3, 1>(en_id * 3, 0) += elementLoadMatrix.block<3, 1>(3, 0);
+	globalLoadamplMatrix.block<2, 1>(n_id * 2, 0) += nodeLoadMatrix.block<2, 1>(0, 0);
 
 	//______________________________________________________________________________________________
 	// Reduce the global load matrix with DOF
@@ -925,60 +327,30 @@ void pulse_analysis_solver::create_pulse_load_matrices(pulse_load_data& pulse_lo
 	pulse_loads.modal_reducedLoadamplMatrix = modal_reducedLoadamplMatrix; // Modal reduction applied to load matrix
 }
 
-void pulse_analysis_solver::get_element_load_matrix(Eigen::MatrixXd& elementLoadMatrix,
-	const elementline_store& ln,
-	const load_data& ld)
+void pulse_analysis_solver::get_reduced_global_matrix(Eigen::MatrixXd& reducedglobalMatrix,
+	const Eigen::MatrixXd& globalMatrix,
+	const Eigen::MatrixXd& globalDOFMatrix,
+	const int& numDOF,
+	const int& reducedDOF)
 {
-	// Compute the differences in x and y coordinates
-	double dx = ln.endNode->node_pt.x - ln.startNode->node_pt.x;
-	double dy = -1.0 * (ln.endNode->node_pt.y - ln.startNode->node_pt.y);
+	// Get the reduced global matrix with the Degree of freedom
+	int r = 0;
 
-	// Compute the length of the frame element
-	double eLength = std::sqrt((dx * dx) + (dy * dy));
-
-	// Compute the direction cosines
-	double Lcos = (dx / eLength);
-	double Msin = (dy / eLength);
-
-	// Create element load mass matrix
-		// Load's line id is equal to this line id
-	double load_val = ld.load_value; // Load value
-	double load_angle_rad = ld.load_angle * (m_pi / 180.0f);
-
-	double f_x = load_val * std::cos(load_angle_rad);
-	double f_y = load_val * std::sin(load_angle_rad);
-
-	double loadHorizontal = (-f_x * Lcos) + (f_y * Msin);
-	double loadVertical = (f_x * Msin) + (f_y * Lcos);
-
-	double a = eLength *0.0;
-	double b = eLength * 0.0;
-
-	// Load parameter
-	double phi_i = (loadVertical * b * (std::pow(eLength, 2) - std::pow(b, 2)) / (6 * eLength));
-	double phi_j = (loadVertical * a * (std::pow(eLength, 2) - std::pow(a, 2)) / (6 * eLength));
-
-	// Axial Load
-	double Tai = loadHorizontal *0.0;
-	double Taj = loadHorizontal * (1 - 0.0);
-
-	// End Moments
-	double Tmi = (((4 * phi_i) - (2 * phi_j)) / eLength);
-	double Tmj = (((2 * phi_i) - (4 * phi_j)) / eLength);
-
-	// Vertical load
-	double Tfi = (((loadVertical * b) + Tmi + Tmj) / eLength);
-	double Tfj = (((loadVertical * a) - Tmi - Tmj) / eLength);
-
-	// Add to the element load matrix
-	elementLoadMatrix.coeffRef(0, 0) += Tai;
-	elementLoadMatrix.coeffRef(1, 0) += (-Tfi);
-	elementLoadMatrix.coeffRef(2, 0) += (-Tmi);
-
-	elementLoadMatrix.coeffRef(3, 0) += Taj;
-	elementLoadMatrix.coeffRef(4, 0) += (-Tfj);
-	elementLoadMatrix.coeffRef(5, 0) += (-Tmj);
-
+	// Loop throug the Degree of freedom of indices
+	for (int i = 0; i < numDOF; i++)
+	{
+		if (globalDOFMatrix(i, 0) == 0)
+		{
+			// constrained row index, so skip
+			continue;
+		}
+		else
+		{
+			// Get the reduced matrices
+			reducedglobalMatrix.coeffRef(r, 0) = globalMatrix.coeffRef(i, 0);
+			r++;
+		}
+	}
 }
 
 void pulse_analysis_solver::get_global_resp_matrix(Eigen::MatrixXd& displ_ampl_RespMatrix_b4supp_trans,
@@ -1007,6 +379,21 @@ void pulse_analysis_solver::get_global_resp_matrix(Eigen::MatrixXd& displ_ampl_R
 		}
 	}
 }
+
+void pulse_analysis_solver::get_steady_state_initial_condition_soln(double& steady_state_displ_resp,
+	const double& time_t,
+	const double& modal_mass,
+	const double& modal_stiff,
+	const double& modal_initial_displacement,
+	const double& modal_initial_velocity)
+{
+	// Return the steady state solution for the intial displacment and velocity
+	double modal_omega_n = std::sqrt(modal_stiff / modal_mass); // Modal omega n
+
+	steady_state_displ_resp = (modal_initial_displacement * std::cos(modal_omega_n * time_t)) +
+		((modal_initial_velocity / modal_omega_n) * std::sin(modal_omega_n * time_t));
+}
+
 
 void pulse_analysis_solver::get_steady_state_pulse_soln(double& steady_state_displ_resp,
 	const double& time_t,

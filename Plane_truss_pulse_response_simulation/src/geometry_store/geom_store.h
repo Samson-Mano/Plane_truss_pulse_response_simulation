@@ -90,6 +90,7 @@ private:
 	nodeinlcond_list_store model_inlcond;
 
 	// Modal Analysis results
+	modal_analysis_solver md_solver;
 	modal_analysis_result_store modal_results;
 	modal_nodes_list_store modal_result_nodes;
 	modal_elementline_list_store modal_result_lineelements;

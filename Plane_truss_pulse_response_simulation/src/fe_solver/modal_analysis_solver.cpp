@@ -64,10 +64,10 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	output_file.open("modal_analysis_results.txt");
 
 	//____________________________________________________________________________________________________________________
-	int numDOF = model_nodes.node_count * 2; // Number of degrees of freedom (2 DOFs per node (2 translation)
+	numDOF = model_nodes.node_count * 2; // Number of degrees of freedom (2 DOFs per node (2 translation)
 
 	// Global Stiffness Matrix
-	Eigen::MatrixXd globalStiffnessMatrix(numDOF, numDOF);
+	globalStiffnessMatrix.resize(numDOF, numDOF);
 	globalStiffnessMatrix.setZero();
 
 	get_global_stiffness_matrix(globalStiffnessMatrix,
@@ -102,19 +102,19 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	}
 
 	//____________________________________________________________________________________________________________________
-	// Global Consistent Mass Matrix
-	Eigen::MatrixXd globalMassMatrix(numDOF, numDOF);
+	// Global Mass Matrix
+	globalMassMatrix.resize(numDOF, numDOF);
 	globalMassMatrix.setZero();
 
 	globalMassMatrix = globalPointMassMatrix + globalConsistentMassMatrix;
 
 	//____________________________________________________________________________________________________________________
 	// Global DOF Mass Matrix
-	Eigen::MatrixXd globalDOFMatrix(numDOF, 1);
+	globalDOFMatrix.resize(numDOF, 1);
 	globalDOFMatrix.setZero();
-
+	
 	// Determine the size of the reduced stiffness matrix based on the number of unconstrained degrees of freedom
-	int reducedDOF = 0;
+	reducedDOF = 0;
 
 	get_global_dof_matrix(globalDOFMatrix,
 		model_nodes,
@@ -229,6 +229,28 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	get_global_modal_vector_matrix(eigenvectors, eigenvectors_reduced, globalDOFMatrix, numDOF, reducedDOF, output_file);
 
 	//____________________________________________________________________________________________________________________
+	// Modal Decomposition
+
+	// Reduced Eigen Vectors matrix
+	reduced_eigenVectorsMatrix.resize(reducedDOF, reducedDOF);
+	reduced_eigenVectorsMatrix.setZero();
+
+	get_reduced_modal_vector_matrix(reduced_eigenVectorsMatrix, modal_results, reducedDOF, output_file);
+
+	//____________________________________________________________________________________________________________________
+	// Create modal matrices
+	modalMass.resize(reducedDOF);
+	modalStiff.resize(reducedDOF);
+
+	get_modal_matrices(modalMass,
+		modalStiff,
+		reduced_eigenVectorsMatrix,
+		reduced_globalMassMatrix,
+		reduced_globalStiffnessMatrix,
+		reducedDOF,
+		output_file);
+
+	//____________________________________________________________________________________________________________________
 	// Store the results
 
 	is_modal_analysis_complete = true;
@@ -290,6 +312,16 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	}
 
 	modal_results.mode_result_str = mode_result_str;
+	//_____________________________________________________________________________________________
+	// Create global support inclination matrix
+	globalSupportInclinationMatrix.resize(numDOF, numDOF);
+	globalSupportInclinationMatrix.setZero();
+
+	get_globalSupportInclinationMatrix(globalSupportInclinationMatrix,
+		model_nodes,
+		model_constarints,
+		numDOF,
+		output_file);
 
 	//_____________________________________________________________________________________________
 
@@ -302,6 +334,7 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		model_lineelements,
 		model_constarints,
 		modal_results,
+		globalSupportInclinationMatrix,
 		modal_result_nodes,
 		modal_result_lineelements,
 		output_file);
@@ -886,21 +919,77 @@ void modal_analysis_solver::get_global_modal_vector_matrix(Eigen::MatrixXd& eige
 	}
 }
 
-void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& model_nodes,
-	const elementline_list_store& model_lineelements,
-	const nodeconstraint_list_store& model_constarints,
+void modal_analysis_solver::get_reduced_modal_vector_matrix(Eigen::MatrixXd& reduced_eigenVectorsMatrix,
 	const modal_analysis_result_store& modal_results,
-	modal_nodes_list_store& modal_result_nodes,
-	modal_elementline_list_store& modal_result_lineelements,
+	int& reducedDOF,
 	std::ofstream& output_file)
 {
-	// Map the modal analysis results to modal members
-	// Create a global support inclination matrix
-	int numDOF = model_nodes.node_count * 2; // Number of degrees of freedom (2 DOFs per node)
-	int node_id = 0;
+	// Get the global eigen vectors matrix
+	for (int i = 0; i < reducedDOF; i++)
+	{
+		std::vector<double> eigen_vector_column = modal_results.eigen_vectors_reduced.at(i);
+		for (int j = 0; j < reducedDOF; j++)
+		{
+			reduced_eigenVectorsMatrix.coeffRef(j, i) = eigen_vector_column[j];
+		}
+	}
 
-	Eigen::MatrixXd globalSupportInclinationMatrix(numDOF, numDOF);
-	globalSupportInclinationMatrix.setZero();
+	if (print_matrix == true)
+	{
+		// Print the Reduced Global Eigen Vector matrix
+		output_file << "Reduced Global EigenVector Matrix" << std::endl;
+		output_file << reduced_eigenVectorsMatrix << std::endl;
+		output_file << std::endl;
+	}
+}
+
+void modal_analysis_solver::get_modal_matrices(Eigen::VectorXd& modalMass,
+	Eigen::VectorXd& modalStiff,
+	const Eigen::MatrixXd& reduced_eigenVectorsMatrix,
+	const Eigen::MatrixXd& reduced_globalMassMatrix,
+	const Eigen::MatrixXd& reduced_globalStiffnessMatrix,
+	const int& reducedDOF,
+	std::ofstream& output_file)
+{
+	// Get the modal matrices
+	Eigen::MatrixXd modalMassMatrix(reducedDOF, reducedDOF);
+	modalMassMatrix.setZero();
+
+	modalMassMatrix = reduced_eigenVectorsMatrix.transpose() * reduced_globalMassMatrix * reduced_eigenVectorsMatrix;
+
+	// Create modal stiffness matrix
+	Eigen::MatrixXd modalStiffMatrix(reducedDOF, reducedDOF);
+	modalStiffMatrix.setZero();
+
+	modalStiffMatrix = reduced_eigenVectorsMatrix.transpose() * reduced_globalStiffnessMatrix * reduced_eigenVectorsMatrix;
+
+	// Create the modal vectors
+	modalMass = modalMassMatrix.diagonal();
+	modalStiff = modalStiffMatrix.diagonal();
+
+	if (print_matrix == true)
+	{
+		// Print the Modal Mass Matrix
+		output_file << "Modal Mass Matrix" << std::endl;
+		output_file << modalMassMatrix << std::endl;
+		output_file << std::endl;
+
+		// Print the Modal Stiffness matrix
+		output_file << "Modal Stiffness Matrix" << std::endl;
+		output_file << modalStiffMatrix << std::endl;
+		output_file << std::endl;
+	}
+}
+
+
+void modal_analysis_solver::get_globalSupportInclinationMatrix(Eigen::MatrixXd& globalSupportInclinationMatrix,
+	const nodes_list_store& model_nodes,
+	const nodeconstraint_list_store& model_constarints,
+	const int& numDOF,
+	std::ofstream& output_file)
+{
+	// Create the global support inclination matrix
+	int node_id = 0;
 
 	// Transform the Nodal results with support inclination
 	double constraint_angle_rad = 0.0;
@@ -937,6 +1026,29 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 			globalSupportInclinationMatrix.coeffRef((matrix_index * 2) + 1, (matrix_index * 2) + 1) = support_Lcos;
 		}
 	}
+
+	if (print_matrix == true)
+	{
+		// Print the Global support inclination matrix
+		output_file << "Global Support Inclination Matrix" << std::endl;
+		output_file << globalSupportInclinationMatrix << std::endl;
+		output_file << std::endl;
+	}
+}
+
+void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& model_nodes,
+	const elementline_list_store& model_lineelements,
+	const nodeconstraint_list_store& model_constarints,
+	const modal_analysis_result_store& modal_results,
+	const Eigen::MatrixXd& globalSupportInclinationMatrix,
+	modal_nodes_list_store& modal_result_nodes,
+	modal_elementline_list_store& modal_result_lineelements,
+	std::ofstream& output_file)
+{
+	// Map the modal analysis results to modal members
+	// Create a global support inclination matrix
+	int numDOF = model_nodes.node_count * 2; // Number of degrees of freedom (2 DOFs per node)
+	int node_id = 0;
 
 	//___________________________________________________________________________________________________________
 	// Transform the  Eigen Vector with support inclination

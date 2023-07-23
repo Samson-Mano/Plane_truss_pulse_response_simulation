@@ -1023,7 +1023,6 @@ void geom_store::paint_modal_analysis()
 	if (sol_modal_window->execute_modal_analysis == true)
 	{
 		// Execute the Modal Analysis
-		modal_analysis_solver md_solver;
 		md_solver.modal_analysis_start(model_nodes,
 			model_lineelements,
 			model_constarints,
@@ -1148,6 +1147,7 @@ void geom_store::paint_pulse_analysis()
 			model_inlcond,
 			mat_window->material_list,
 			sol_modal_window->is_include_consistent_mass_matrix,
+			md_solver,
 			modal_results,
 			sol_pulse_window->total_simulation_time,
 			sol_pulse_window->time_interval,

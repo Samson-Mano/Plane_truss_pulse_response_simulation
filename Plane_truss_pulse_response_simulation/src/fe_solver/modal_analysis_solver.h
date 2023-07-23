@@ -33,6 +33,18 @@ public:
 	const double m_pi = 3.14159265358979323846;
 	bool print_matrix = true;
 
+	int numDOF = 0;
+	int reducedDOF = 0;
+	std::unordered_map<int, int> nodeid_map;
+	Eigen::MatrixXd globalStiffnessMatrix; // global stiffness matrix
+	Eigen::MatrixXd globalMassMatrix; // global mass matrix
+	Eigen::MatrixXd globalDOFMatrix; // global DOF matrix
+	Eigen::MatrixXd reduced_eigenVectorsMatrix; // Reduced Eigen Vectors matrix
+	Eigen::MatrixXd globalSupportInclinationMatrix; // Global support inclination matrix
+	Eigen::VectorXd modalMass; // Modal mass matrix
+	Eigen::VectorXd modalStiff; // Modal stiffness matrix
+
+
 	modal_analysis_solver();
 	~modal_analysis_solver();
 	void modal_analysis_start(const nodes_list_store& model_nodes,
@@ -46,7 +58,6 @@ public:
 		modal_elementline_list_store& modal_result_lineelements,
 		bool& is_modal_analysis_complete);
 private:
-	std::unordered_map<int, int> nodeid_map;
 
 	void get_global_stiffness_matrix(Eigen::MatrixXd& globalStiffnessMatrix,
 		const elementline_list_store& model_lineelements,
@@ -99,6 +110,19 @@ private:
 		int& reducedDOF,
 		std::ofstream& output_file);
 
+	void get_reduced_modal_vector_matrix(Eigen::MatrixXd& reduced_eigenVectorsMatrix,
+		const modal_analysis_result_store& modal_results,
+		int& reducedDOF,
+		std::ofstream& output_file);
+
+	void get_modal_matrices(Eigen::VectorXd& modalMass,
+		Eigen::VectorXd& modalStiff,
+		const Eigen::MatrixXd& reduced_eigenVectorsMatrix,
+		const Eigen::MatrixXd& reduced_globalMassMatrix,
+		const Eigen::MatrixXd& reduced_globalStiffnessMatrix,
+		const int& reducedDOF,
+		std::ofstream& output_file);
+
 	void sort_eigen_values_vectors(Eigen::VectorXd& eigenvalues,
 		Eigen::MatrixXd& eigenvectors,
 		const int& m_size);
@@ -111,10 +135,17 @@ private:
 	int get_number_of_rigid_body_modes(int num_of_nodes,
 		const Eigen::MatrixXd& globalDOFMatrix);
 
+	void get_globalSupportInclinationMatrix(Eigen::MatrixXd& globalSupportInclinationMatrix,
+		const nodes_list_store& model_nodes,
+		const nodeconstraint_list_store& model_constarints,
+		const int& numDOF,
+		std::ofstream& output_file);
+
 	void map_modal_analysis_results(const nodes_list_store& model_nodes,
 		const elementline_list_store& model_lineelements,
 		const nodeconstraint_list_store& model_constarints,
 		const modal_analysis_result_store& modal_results,
+		const Eigen::MatrixXd& globalSupportInclinationMatrix,
 		modal_nodes_list_store& modal_result_nodes,
 		modal_elementline_list_store& modal_result_lineelements,
 		std::ofstream& output_file);
