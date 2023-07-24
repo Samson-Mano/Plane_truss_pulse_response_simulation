@@ -50,6 +50,11 @@ void nodeload_list_store::add_load(int& node_id, glm::vec2& load_loc, double& lo
 
 void nodeload_list_store::delete_load(int& node_id)
 {
+	if (load_count == 0)
+	{
+		return;
+	}
+
 	// Delete all the loads in the node
 	std::vector<int> delete_load_id;
 
@@ -76,6 +81,9 @@ void nodeload_list_store::delete_load(int& node_id)
 		auto it = std::find(all_load_ids.begin(), all_load_ids.end(), del_id);
 		all_load_ids.erase(it);
 	}
+
+	// Reduce the load count
+	load_count--;
 }
 
 void nodeload_list_store::set_buffer()

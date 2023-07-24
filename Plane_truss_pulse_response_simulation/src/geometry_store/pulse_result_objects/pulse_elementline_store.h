@@ -20,14 +20,14 @@ struct pulse_elementline_store
 	pulse_node_store* startNode = nullptr; // start node
 	pulse_node_store* endNode = nullptr; // end node
 
-	// Line modal displacement data
-	std::vector<pulse_line_points> hermite_line_data;
+	// Line pulse displacement data
+	std::vector<pulse_line_points> discretized_bar_line_data;
 };
 
 class pulse_elementline_list_store
 {
 public:
-	const int interpolation_count = 3;
+	const int interpolation_count = 10;
 	unsigned int pulse_elementline_count = 0;
 	std::unordered_map<int, pulse_elementline_store> pulse_elementlineMap; // Create an unordered_map to store lines with ID as key
 	double max_line_displ = 0.0; // Maximum line displacement
@@ -37,7 +37,7 @@ public:
 	void init(geom_parameters* geom_param_ptr);
 	void clear_data();
 	void add_pulse_elementline(int& line_id, pulse_node_store* startNode, pulse_node_store* endNode);
-	std::vector<pulse_line_points> set_line_hermite_interpolation(const int& interpolation_count, pulse_node_store* startNode, pulse_node_store* endNode);
+	std::vector<pulse_line_points> set_line_bar_interpolation(const int& interpolation_count, pulse_node_store* startNode, pulse_node_store* endNode);
 	double linear_bar_element_interpolation(double q1, double q2, double s);
 	double hermite_beam_element_interpolation(double v1, double theta1, double v2, double theta2, double s);
 

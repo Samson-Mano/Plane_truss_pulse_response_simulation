@@ -48,7 +48,7 @@ void pulse_elementline_list_store::add_pulse_elementline(int& line_id, pulse_nod
 	}
 
 	//__________________________ Add Hermite interpolation for Beam Element
-	temp_line.hermite_line_data = set_line_hermite_interpolation(interpolation_count, startNode, endNode);
+	temp_line.discretized_bar_line_data = set_line_bar_interpolation(interpolation_count, startNode, endNode);
 
 	// Insert to the lines
 	pulse_elementlineMap.insert({ line_id, temp_line });
@@ -56,7 +56,7 @@ void pulse_elementline_list_store::add_pulse_elementline(int& line_id, pulse_nod
 }
 
 
-std::vector<pulse_line_points> pulse_elementline_list_store::set_line_hermite_interpolation(const int& interpolation_count,
+std::vector<pulse_line_points> pulse_elementline_list_store::set_line_bar_interpolation(const int& interpolation_count,
 	pulse_node_store* startNode, 
 	pulse_node_store* endNode)
 {
@@ -77,7 +77,7 @@ std::vector<pulse_line_points> pulse_elementline_list_store::set_line_hermite_in
 	double Msin = (dy / eLength);
 
 	// Return varible
-	std::vector<pulse_line_points> hermite_line_data;
+	std::vector<pulse_line_points> discretized_line_data;
 
 	// Create the interpolation inbetween the start and end point
 	for (int i = 0; i < interpolation_count; i++)
@@ -108,10 +108,11 @@ std::vector<pulse_line_points> pulse_elementline_list_store::set_line_hermite_in
 		// get the end displacements of every individual nodes
 		for (int j = 0; j < num_of_time_steps; j++)
 		{
-			// Get the displacement at start point
-			glm::vec3 start_node_displ = (*startNode).node_pulse_result.node_pulse_displ[j];
-			glm::vec3 end_node_displ = (*endNode).node_pulse_result.node_pulse_displ[j];
+			// Get the displacement at start point and End point and scale it
+			glm::vec2 start_node_displ = (*startNode).node_pulse_result.node_pulse_displ[j];
+			glm::vec2 end_node_displ = (*endNode).node_pulse_result.node_pulse_displ[j];
 
+			/*
 			// Start point displacement at local axis
 			glm::vec2 local_displ_start_node = glm::vec2(((start_node_displ.x * Lcos) + (start_node_displ.y * Msin)),
 				((start_node_displ.x * (-1 * Msin)) + (start_node_displ.y * Lcos)));
@@ -123,11 +124,11 @@ std::vector<pulse_line_points> pulse_elementline_list_store::set_line_hermite_in
 			//_____________________________________________________________________________________________
 			// Find the interpolation of the displacements at pt1
 			glm::vec2 local_displ_pt1 = glm::vec2(linear_bar_element_interpolation(local_displ_start_node.x, local_displ_end_node.x, t_ratio1),
-				hermite_beam_element_interpolation(local_displ_start_node.y, start_node_displ.z, local_displ_end_node.y, end_node_displ.z, t_ratio1));
+				linear_bar_element_interpolation(local_displ_start_node.y, local_displ_end_node.y, t_ratio1));
 
 			// Find the interpolation of the displacements at pt2
 			glm::vec2 local_displ_pt2 = glm::vec2(linear_bar_element_interpolation(local_displ_start_node.x, local_displ_end_node.x, t_ratio2),
-				hermite_beam_element_interpolation(local_displ_start_node.y, start_node_displ.z, local_displ_end_node.y, end_node_displ.z, t_ratio2));
+				linear_bar_element_interpolation(local_displ_start_node.y, local_displ_end_node.y, t_ratio2));
 
 			// Transform from local to global
 			glm::vec2 global_displ_pt1 = glm::vec2(((local_displ_pt1.x * Lcos) + (local_displ_pt1.y * (-1 * Msin))),
@@ -135,6 +136,17 @@ std::vector<pulse_line_points> pulse_elementline_list_store::set_line_hermite_in
 
 			glm::vec2 global_displ_pt2 = glm::vec2(((local_displ_pt2.x * Lcos) + (local_displ_pt2.y * (-1 * Msin))),
 				((local_displ_pt2.x * Msin) + (local_displ_pt2.y * Lcos)));
+			
+			*/
+
+			// Find the interpolation of the displacements at pt1
+			glm::vec2 global_displ_pt1 = glm::vec2(linear_bar_element_interpolation(start_node_displ.x, end_node_displ.x, t_ratio1),
+				linear_bar_element_interpolation(start_node_displ.y, end_node_displ.y, t_ratio1));
+
+			// Find the interpolation of the displacements at pt2
+			glm::vec2 global_displ_pt2 = glm::vec2(linear_bar_element_interpolation(start_node_displ.x, end_node_displ.x, t_ratio2),
+				linear_bar_element_interpolation(start_node_displ.y, end_node_displ.y, t_ratio2));
+
 
 			//__________________________________________________________________________________________________
 			// Add to the list
@@ -151,10 +163,10 @@ std::vector<pulse_line_points> pulse_elementline_list_store::set_line_hermite_in
 		temp_pulse_line.pt2_modal_displ = pt2_modal_displ;
 
 		// Add to the return variable
-		hermite_line_data.push_back(temp_pulse_line);
+		discretized_line_data.push_back(temp_pulse_line);
 	}
 
-	return hermite_line_data;
+	return discretized_line_data;
 }
 
 double pulse_elementline_list_store::linear_bar_element_interpolation(double q1, double q2, double s)
@@ -186,7 +198,7 @@ void pulse_elementline_list_store::set_buffer()
 		pulse_elementline_store  ln = line_m.second;
 
 		// get all the hermite interpolation line
-		for (auto& h_lines : ln.hermite_line_data)
+		for (auto& h_lines : ln.discretized_bar_line_data)
 		{
 			std::vector<glm::vec2> line_startpt_offset; // list of start points offset
 			std::vector<glm::vec2> line_endpt_offset; // list of end points offset

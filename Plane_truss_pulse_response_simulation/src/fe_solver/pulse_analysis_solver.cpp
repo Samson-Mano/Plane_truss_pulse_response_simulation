@@ -55,7 +55,24 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 		md_solver.reduced_eigenVectorsMatrix,
 		md_solver.numDOF,
 		md_solver.reducedDOF);
-	
+	//___________________________________________________________________________________
+	// Create a file to keep track of frequency response matrices
+	std::ofstream output_file;
+	output_file.open("pulse_analysis_results.txt");
+
+	if (print_matrix == true)
+	{
+		// Print the Modal Initial Displacement matrix
+		output_file << "Modal Initial Displacement Matrix" << std::endl;
+		output_file << modal_reducedInitialDisplacementMatrix << std::endl;
+		output_file << std::endl;
+
+		// Print the Modal Initial Velocity matrix
+		output_file << "Modal Initial Velocity Matrix" << std::endl;
+		output_file << modal_reducedInitialVelocityMatrix << std::endl;
+		output_file << std::endl;
+	}
+
 	//____________________________________________________________________________________________________________________
 	// Create the Pulse force data for all the individual 
 	std::vector<pulse_load_data> pulse_loads(model_loads.load_count);
@@ -153,9 +170,8 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 			int nd_index = nodeid_map[nd_id];
 
 			// Node displacement response
-			glm::vec3 node_displ = glm::vec3(displ_ampl_RespMatrix((nd_index * 3) + 0, 0),
-				displ_ampl_RespMatrix((nd_index * 3) + 1, 0),
-				displ_ampl_RespMatrix((nd_index * 3) + 2, 0));
+			glm::vec2 node_displ = glm::vec2(displ_ampl_RespMatrix((nd_index * 2) + 0, 0),
+				displ_ampl_RespMatrix((nd_index * 2) + 1, 0));
 
 			// Add the index
 			node_results[nd_id].index.push_back(r_id);
@@ -202,6 +218,9 @@ void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& m
 	Eigen::MatrixXd globalInitialDisplacementMatrix(numDOF, 1);
 	Eigen::MatrixXd globalInitialVelocityMatrix(numDOF, 1);
 
+	globalInitialDisplacementMatrix.setZero();
+	globalInitialVelocityMatrix.setZero();
+
 	for (auto& inlc_m : model_inlcond.inlcondMap)
 	{
 		nodeinl_condition_data inlc = inlc_m.second;
@@ -233,6 +252,9 @@ void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& m
 	// Reduce the intial condition matrix with the degree of freedom 
 	Eigen::MatrixXd reducedInitialDisplacementMatrix(reducedDOF, 1);
 	Eigen::MatrixXd reducedInitialVelocityMatrix(reducedDOF, 1);
+
+	reducedInitialDisplacementMatrix.setZero();
+	reducedInitialVelocityMatrix.setZero();
 
 	// reduced initial displacement matrix
 	get_reduced_global_matrix(reducedInitialDisplacementMatrix,
@@ -478,7 +500,7 @@ void pulse_analysis_solver::map_pulse_analysis_results(pulse_analysis_result_sto
 	for (auto& ln_m : pulse_result_lineelements.pulse_elementlineMap)
 	{
 		// get all the discretized line of every single line
-		for (auto& h_ln : ln_m.second.hermite_line_data)
+		for (auto& h_ln : ln_m.second.discretized_bar_line_data)
 		{
 			//get all the two points
 			// Point 1 displacement

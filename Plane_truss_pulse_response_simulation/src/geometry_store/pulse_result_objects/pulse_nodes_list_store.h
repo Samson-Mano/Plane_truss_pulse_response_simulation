@@ -10,7 +10,7 @@ struct pulse_node_result
 {
 	std::vector<int> index; // index
 	std::vector<double> time_val; // at time t list
-	std::vector <glm::vec3> node_pulse_displ; // Nodal displacement at time t
+	std::vector <glm::vec2> node_pulse_displ; // Nodal displacement at time t
 };
 
 struct pulse_node_store

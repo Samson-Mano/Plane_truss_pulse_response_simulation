@@ -229,28 +229,6 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	get_global_modal_vector_matrix(eigenvectors, eigenvectors_reduced, globalDOFMatrix, numDOF, reducedDOF, output_file);
 
 	//____________________________________________________________________________________________________________________
-	// Modal Decomposition
-
-	// Reduced Eigen Vectors matrix
-	reduced_eigenVectorsMatrix.resize(reducedDOF, reducedDOF);
-	reduced_eigenVectorsMatrix.setZero();
-
-	get_reduced_modal_vector_matrix(reduced_eigenVectorsMatrix, modal_results, reducedDOF, output_file);
-
-	//____________________________________________________________________________________________________________________
-	// Create modal matrices
-	modalMass.resize(reducedDOF);
-	modalStiff.resize(reducedDOF);
-
-	get_modal_matrices(modalMass,
-		modalStiff,
-		reduced_eigenVectorsMatrix,
-		reduced_globalMassMatrix,
-		reduced_globalStiffnessMatrix,
-		reducedDOF,
-		output_file);
-
-	//____________________________________________________________________________________________________________________
 	// Store the results
 
 	is_modal_analysis_complete = true;
@@ -337,6 +315,28 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		globalSupportInclinationMatrix,
 		modal_result_nodes,
 		modal_result_lineelements,
+		output_file);
+
+	//____________________________________________________________________________________________________________________
+	// Modal Decomposition
+
+	// Reduced Eigen Vectors matrix
+	reduced_eigenVectorsMatrix.resize(reducedDOF, reducedDOF);
+	reduced_eigenVectorsMatrix.setZero();
+
+	get_reduced_modal_vector_matrix(reduced_eigenVectorsMatrix, modal_results, reducedDOF, output_file);
+
+	//____________________________________________________________________________________________________________________
+	// Create modal matrices
+	modalMass.resize(reducedDOF);
+	modalStiff.resize(reducedDOF);
+
+	get_modal_matrices(modalMass,
+		modalStiff,
+		reduced_eigenVectorsMatrix,
+		reduced_globalMassMatrix,
+		reduced_globalStiffnessMatrix,
+		reducedDOF,
 		output_file);
 
 	//____________________________________________________________________________________________________________________

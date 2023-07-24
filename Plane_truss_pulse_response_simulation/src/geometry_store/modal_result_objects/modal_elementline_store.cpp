@@ -74,7 +74,7 @@ std::vector<modal_line_points> modal_elementline_list_store::set_line_bar_interp
 	double Msin = (dy / eLength);
 
 	// Return varible
-	std::vector<modal_line_points> hermite_line_data;
+	std::vector<modal_line_points> discretized_line_data;
 
 	// Create the interpolation inbetween the start and end point
 	for (int i = 0; i < interpolation_count; i++)
@@ -147,10 +147,10 @@ std::vector<modal_line_points> modal_elementline_list_store::set_line_bar_interp
 		temp_modal_line.pt2_modal_displ = pt2_modal_displ;
 
 		// Add to the return variable
-		hermite_line_data.push_back(temp_modal_line);
+		discretized_line_data.push_back(temp_modal_line);
 	}
 
-	return hermite_line_data;
+	return discretized_line_data;
 }
 
 double modal_elementline_list_store::linear_bar_element_interpolation(double q1, double q2, double s)
