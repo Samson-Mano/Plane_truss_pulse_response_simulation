@@ -504,9 +504,8 @@ void pulse_analysis_solver::map_pulse_analysis_results(pulse_analysis_result_sto
 		{
 			//get all the two points
 			// Point 1 displacement
-			for (auto& pt1_m : h_ln.pt1_modal_displ)
+			for (auto& pt1 : h_ln.pt1_modal_displ)
 			{
-				glm::vec2 pt1 = pt1_m.second; //get the end point 1 displacement
 				double displ1 = std::sqrt(std::pow(pt1.x, 2) + std::pow(pt1.y, 2));
 
 				if (displ1 > maximum_displacement)
@@ -516,9 +515,8 @@ void pulse_analysis_solver::map_pulse_analysis_results(pulse_analysis_result_sto
 			}
 
 			// Point 2 displacement
-			for (auto& pt2_m : h_ln.pt2_modal_displ)
+			for (auto& pt2 : h_ln.pt2_modal_displ)
 			{
-				glm::vec2 pt2 = pt2_m.second; //get the end point 2 displacement
 				double displ2 = std::sqrt(std::pow(pt2.x, 2) + std::pow(pt2.y, 2));
 
 				if (displ2 > maximum_displacement)

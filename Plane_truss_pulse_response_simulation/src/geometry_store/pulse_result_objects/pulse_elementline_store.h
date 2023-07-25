@@ -10,8 +10,8 @@ struct pulse_line_points
 	glm::vec2 pt2 = glm::vec2(0);
 
 	// Point displacements
-	std::unordered_map<int, glm::vec2> pt1_modal_displ;
-	std::unordered_map<int, glm::vec2> pt2_modal_displ;
+	std::vector<glm::vec2> pt1_modal_displ;
+	std::vector<glm::vec2> pt2_modal_displ;
 };
 
 struct pulse_elementline_store
@@ -27,7 +27,7 @@ struct pulse_elementline_store
 class pulse_elementline_list_store
 {
 public:
-	const int interpolation_count = 10;
+	const int interpolation_count = 3;
 	unsigned int pulse_elementline_count = 0;
 	std::unordered_map<int, pulse_elementline_store> pulse_elementlineMap; // Create an unordered_map to store lines with ID as key
 	double max_line_displ = 0.0; // Maximum line displacement

@@ -99,11 +99,11 @@ std::vector<pulse_line_points> pulse_elementline_list_store::set_line_bar_interp
 
 		//_____________________________________________________________________________________________
 		//_____________________________________________________________________________________________
-		int num_of_time_steps = (*startNode).number_of_timesteps;
+		int num_of_time_steps = static_cast<int>((*startNode).node_pulse_result.node_pulse_displ.size());
 
 		// Find the pt modal displacement for every individual mode
-		std::unordered_map<int, glm::vec2> pt1_modal_displ;
-		std::unordered_map<int, glm::vec2> pt2_modal_displ;
+		std::vector<glm::vec2> pt1_modal_displ;
+		std::vector<glm::vec2> pt2_modal_displ;
 
 		// get the end displacements of every individual nodes
 		for (int j = 0; j < num_of_time_steps; j++)
@@ -150,8 +150,8 @@ std::vector<pulse_line_points> pulse_elementline_list_store::set_line_bar_interp
 
 			//__________________________________________________________________________________________________
 			// Add to the list
-			pt1_modal_displ.insert({ j,global_displ_pt1 });
-			pt2_modal_displ.insert({ j,global_displ_pt2 });
+			pt1_modal_displ.push_back(global_displ_pt1);
+			pt2_modal_displ.push_back(global_displ_pt2);
 		}
 
 		// Add to the line list
@@ -207,9 +207,8 @@ void pulse_elementline_list_store::set_buffer()
 			std::vector<glm::vec3> line_endpt_color; // list of end point color
 
 			// Add each individual segment of main line to list
-			for (auto& pt1_m : h_lines.pt1_modal_displ)
+			for (auto& pt1 : h_lines.pt1_modal_displ)
 			{
-				glm::vec2 pt1 = pt1_m.second;
 				// Pt1
 				// Point1 displacement
 				double pt_displ1 = std::sqrt(std::pow(pt1.x, 2) +
@@ -231,9 +230,8 @@ void pulse_elementline_list_store::set_buffer()
 				line_startpt_color.push_back(pt1_contour_color);
 			}
 			
-			for (auto& pt2_m : h_lines.pt2_modal_displ)
+			for (auto& pt2 : h_lines.pt2_modal_displ)
 			{
-				glm::vec2 pt2 = pt2_m.second;
 				// Pt2
 				// Point2 displacement
 				double pt_displ2 = std::sqrt(std::pow(pt2.x, 2) +
