@@ -13,6 +13,9 @@
 #include "../geometry_store/modal_result_objects/modal_nodes_list_store.h"
 #include "../geometry_store/modal_result_objects/modal_elementline_store.h"
 
+// Stop watch
+#include "../events_handler/Stopwatch_events.h"
+
 #pragma warning(push)
 #pragma warning (disable : 26451)
 #pragma warning (disable : 26495)
@@ -31,7 +34,8 @@ class modal_analysis_solver
 {
 public:
 	const double m_pi = 3.14159265358979323846;
-	bool print_matrix = true;
+	bool print_matrix = false;
+	Stopwatch_events stopwatch;
 
 	int numDOF = 0;
 	int reducedDOF = 0;

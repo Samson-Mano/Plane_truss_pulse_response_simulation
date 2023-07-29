@@ -50,6 +50,11 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	}
 
 	//____________________________________________
+	stopwatch.start();
+	std::stringstream stopwatch_elapsed_str;
+	stopwatch_elapsed_str << std::fixed << std::setprecision(6);
+
+	std::cout << "Modal analysis started" << std::endl;
 
 	// Create a node ID map (to create a nodes as ordered and numbered from 0,1,2...n)
 	int i = 0;
@@ -58,6 +63,9 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		nodeid_map[nd.first] = i;
 		i++;
 	}
+
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Node maping completed at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	// Create a file to keep track of matrices
 	std::ofstream output_file;
@@ -76,6 +84,10 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		model_constarints,
 		output_file);
 
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Global stiffness matrix completed at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	//____________________________________________________________________________________________________________________
 	// Global Point Mass Matrix
@@ -108,11 +120,16 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 
 	globalMassMatrix = globalPointMassMatrix + globalConsistentMassMatrix;
 
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Global mass matrix completed at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+
 	//____________________________________________________________________________________________________________________
 	// Global DOF Mass Matrix
 	globalDOFMatrix.resize(numDOF, 1);
 	globalDOFMatrix.setZero();
-	
+
 	// Determine the size of the reduced stiffness matrix based on the number of unconstrained degrees of freedom
 	reducedDOF = 0;
 
@@ -122,6 +139,10 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		reducedDOF,
 		output_file);
 
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Global DOF matrix completed at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	//____________________________________________________________________________________________________________________
 	// Create Reduced Global Mass and stiffness matrix
@@ -139,6 +160,12 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		globalDOFMatrix,
 		numDOF,
 		output_file);
+
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Global stiffness/mass matrces are reduced at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	//____________________________________________________________________________________________________________________
 	// Solve generalized Eigen value matrix using Cholesky decomposition
@@ -165,6 +192,12 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		output_file << std::endl;
 	}
 
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Cholesky decomposition L-matrix completed at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+
 	// Get the L^-1 inverse of L-matrix Lower triangular matrix
 	Eigen::MatrixXd L_inv_matrix = L_matrix.inverse();
 
@@ -175,6 +208,11 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		output_file << L_inv_matrix << std::endl;
 		output_file << std::endl;
 	}
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Inverse of lower triangle matrix completed at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	//____________________________________________________________________________________________________________________
 	//  Find the eigen value & eigen vector of eigen value problem Z_matrix
@@ -190,6 +228,13 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		output_file << std::endl;
 	}
 
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Generalized Eigen value problem Z-matrix created at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+	std::cout << "Size of the Z-matrix is " << reducedDOF << " x " << reducedDOF << std::endl;
+
+
 	// Compute the eigenvalues and eigenvectors
 	Eigen::EigenSolver<Eigen::MatrixXd> eigenSolver(Z_matrix);
 
@@ -199,6 +244,11 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		return;
 	}
 
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Eigen value problem solved at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+
 	// Get the eigenvalues and eigenvectors
 	Eigen::VectorXd eigenvalues = eigenSolver.eigenvalues().real(); // Real part of eigenvalues
 	Eigen::MatrixXd eigenvectors_reduced = L_inv_matrix.transpose() * eigenSolver.eigenvectors().real(); // Real part of eigenvectors
@@ -206,8 +256,18 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	// sort the eigen value and eigen vector (ascending)
 	sort_eigen_values_vectors(eigenvalues, eigenvectors_reduced, reducedDOF);
 
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Eigen values and Eigen vectors are sorted at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+
 	// Normailize eigen vectors
 	normalize_eigen_vectors(eigenvectors_reduced, reducedDOF);
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Eigen vectors are normalized at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	//____________________________________________________________________________________________________________________
 
@@ -227,6 +287,11 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	eigenvectors.setZero();
 
 	get_global_modal_vector_matrix(eigenvectors, eigenvectors_reduced, globalDOFMatrix, numDOF, reducedDOF, output_file);
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Eigen vectors globalized at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	//____________________________________________________________________________________________________________________
 	// Store the results
@@ -290,6 +355,12 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	}
 
 	modal_results.mode_result_str = mode_result_str;
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Modal results are storage completed at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+
 	//_____________________________________________________________________________________________
 	// Create global support inclination matrix
 	globalSupportInclinationMatrix.resize(numDOF, numDOF);
@@ -300,6 +371,11 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		model_constarints,
 		numDOF,
 		output_file);
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Global support inclination matrix completed at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	//_____________________________________________________________________________________________
 
@@ -316,6 +392,12 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		modal_result_nodes,
 		modal_result_lineelements,
 		output_file);
+
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Modal analysis results maped to nodes and elements at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	//____________________________________________________________________________________________________________________
 	// Modal Decomposition
@@ -339,10 +421,17 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		reducedDOF,
 		output_file);
 
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Modal mass and stiffness storage completed at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+	std::cout << "Modal analysis complete " << std::endl;
+
 	//____________________________________________________________________________________________________________________
+	stopwatch.stop();
 
 	output_file.close();
-
 }
 
 void modal_analysis_solver::get_global_stiffness_matrix(Eigen::MatrixXd& globalStiffnessMatrix,
@@ -1063,6 +1152,14 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 		globalEigenVector_transformed.col(i) = globalSupportInclinationMatrix * globalEigenVector;
 	}
 
+	std::stringstream stopwatch_elapsed_str;
+	stopwatch_elapsed_str << std::fixed << std::setprecision(6);
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Transformed eigen vector with support inclination at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+
 	//___________________________________________________________________________________________________________
 	// Add to the result nodes
 	for (auto& nd_m : model_nodes.nodeMap)
@@ -1088,6 +1185,11 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 		modal_result_nodes.add_result_node(node_id, node_pt, node_modal_displ);
 	}
 
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Results mapped to model nodes at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+
 	// Add the modal line element result
 	for (auto& ln_m : model_lineelements.elementlineMap)
 	{
@@ -1097,6 +1199,11 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 			&modal_result_nodes.modal_nodeMap[ln.startNode->node_id],
 			&modal_result_nodes.modal_nodeMap[ln.endNode->node_id]);
 	}
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "Results mapped to model elements at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	// Find the maximum displacement for individual modes
 	std::unordered_map<int, double> max_node_displ;
@@ -1108,50 +1215,38 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 		double max_displ = 0.0;
 		double min_displ = INT32_MAX;
 
-		for (auto& ln_m : modal_result_lineelements.modal_elementlineMap)
+		for (auto& nd_m : modal_result_nodes.modal_nodeMap)
 		{
-			modal_elementline_store ln = ln_m.second;
+			modal_node_store nd = nd_m.second;
+			// loop through all the mode node points
+			glm::vec2 nd_pt = nd.node_modal_displ[i];
 
-			// Get all the modal line data
-			for (auto& mln_bld : ln.discretized_bar_line_data)
+			double pt_displacement = std::abs(std::sqrt((nd_pt.x * nd_pt.x) + (nd_pt.y * nd_pt.y)));
+			// Check all the point
+			// Maximum
+			if (max_displ < pt_displacement)
 			{
-				// loop through all the mode line end points
-				glm::vec2 mln_pt1 = mln_bld.pt1_modal_displ[i];
-				glm::vec2 mln_pt2 = mln_bld.pt2_modal_displ[i];
-
-				// Check all the point
-				// Maximum
-				if (max_displ < std::abs(std::sqrt((mln_pt1.x * mln_pt1.x) + (mln_pt1.y * mln_pt1.y))))
-				{
-					// pt1
-					max_displ = std::abs(std::sqrt((mln_pt1.x * mln_pt1.x) + (mln_pt1.y * mln_pt1.y)));
-				}
-
-				if (max_displ < std::abs(std::sqrt((mln_pt2.x * mln_pt2.x) + (mln_pt2.y * mln_pt2.y))))
-				{
-					// pt2
-					max_displ = std::abs(std::sqrt((mln_pt2.x * mln_pt2.x) + (mln_pt2.y * mln_pt2.y)));
-				}
-				//____________________________________________________________________________________________
-				// Minimum
-				if (min_displ > std::abs(std::sqrt((mln_pt1.x * mln_pt1.x) + (mln_pt1.y * mln_pt1.y))))
-				{
-					// pt1
-					min_displ = std::abs(std::sqrt((mln_pt1.x * mln_pt1.x) + (mln_pt1.y * mln_pt1.y)));
-				}
-
-				if (min_displ > std::abs(std::sqrt((mln_pt2.x * mln_pt2.x) + (mln_pt2.y * mln_pt2.y))))
-				{
-					// pt2
-					min_displ = std::abs(std::sqrt((mln_pt2.x * mln_pt2.x) + (mln_pt2.y * mln_pt2.y)));
-				}
+				// pt1
+				max_displ = pt_displacement;
+			}
+			//____________________________________________________________________________________________
+			// Minimum
+			if (min_displ > pt_displacement)
+			{
+				// pt1
+				min_displ = pt_displacement;
 			}
 		}
 
 		// Add to the maximum displacement of this mode
-		max_node_displ.insert({ i,max_displ });
-		min_node_displ.insert({ i,min_displ });
+		max_node_displ[i] = max_displ;
+		min_node_displ[i] = min_displ;
 	}
+
+	stopwatch_elapsed_str.str("");
+	stopwatch_elapsed_str.clear();
+	stopwatch_elapsed_str << stopwatch.elapsed();
+	std::cout << "maximum and minimum modal displacement found at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	// Set the maximum modal displacement
 	modal_result_nodes.max_node_displ.clear();
