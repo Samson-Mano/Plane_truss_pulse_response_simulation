@@ -227,7 +227,7 @@ def mdof_simple_harmonic_solution_numerical(mass_M, stiff_K, inl_displ, inl_velo
         displ_n_plus_1 = displ_n + velo_n * delta_t + 0.5 * accel_n * delta_t ** 2
         accel_n_plus_1 = np.linalg.solve(mass_M, get_pulse_force(pulse_force_list, t + delta_t) - stiff_K @ displ_n_plus_1)
         velo_n_plus_1 = velo_n + 0.5 * (accel_n + accel_n_plus_1) * delta_t
-        return displ_n_plus_1, velo_n_plus_1
+        return displ_n_plus_1, velo_n_plus_1, accel_n
 
     # Arrays to store the results
     displ_results = np.zeros((2, time_steps + 1))
@@ -239,20 +239,21 @@ def mdof_simple_harmonic_solution_numerical(mass_M, stiff_K, inl_displ, inl_velo
 
     displ_results[:, 0] = np.array(inl_displ).flatten()
     velo_results[:, 0] =  np.array(inl_velo).flatten()
+    accel_results[:, 0] = np.linalg.solve(mass_M, get_pulse_force(pulse_force_list[0], 0.0) - stiff_K @ displ_results[:, 0])
 
     # Perform time integration to calculate the response
     for i in range(time_steps):
         t = t_start + i * delta_t
         pulse_force_list_i = pulse_force_list[i % 2]  # Access the pulse force list for the current time step
-        displ_results[:, i + 1], velo_results[:, i + 1] = central_difference_integration(
+        displ_results[:, i + 1], velo_results[:, i + 1], accel_results[:, i + 1] = central_difference_integration(
             displ_results[:, i], velo_results[:, i], t, pulse_force_list_i
         )
 
-    # Calculate acceleration from displacements and velocities
-    for i in range(time_steps + 1):
-        t = t_start + i * delta_t
-        pulse_force_list_i = pulse_force_list[i % 2]  # Access the pulse force list for the current time step
-        accel_results[:, i] = np.linalg.solve(mass_M, get_pulse_force(pulse_force_list_i, t) - stiff_K @ displ_results[:, i])
+    ## Calculate acceleration from displacements and velocities
+    #for i in range(time_steps + 1):
+        #t = t_start + i * delta_t
+        #pulse_force_list_i = pulse_force_list[i % 2]  # Access the pulse force list for the current time step
+        #accel_results[:, i] = np.linalg.solve(mass_M, get_pulse_force(pulse_force_list_i, t) - stiff_K @ displ_results[:, i])
 
     # Time array for plotting
     time_array = np.linspace(t_start, t_end, time_steps + 1)
