@@ -53,6 +53,10 @@ def pulse_force_displ_response(force_ampl_p0,force_start_time,force_end_time,sti
     return displ,velo,accl
 
 def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo, time_range, pulse_force_list):
+
+    #_______________________________________________________________________
+    #_____________ ANALYTICAL METHOD _______________________________________
+    #_______________________________________________________________________
     # Find the angular frequency
     numDOF = 2 # number of defree of freedom
     # Calculate eigenvalues and eigenvectors
@@ -92,9 +96,15 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
     velocity = np.zeros((numDOF,t_count))
     acceleration = np.zeros((numDOF,t_count))
 
-    for j in range(2):
-        modal_inl_displ[j] = np.dot(normalized_mode_shapes[:,j],inl_displ)
-        modal_inl_velo[j] = np.dot(normalized_mode_shapes[:,j],inl_velo)
+    modal_inl_displ = np.dot(normalized_mode_shapes, inl_displ)
+    modal_inl_velo = np.dot(normalized_mode_shapes, inl_velo)
+    
+    for j in range(numDOF):
+        # sub_pulse_force_list = [item for sublist in pulse_force_list[j] for item in sublist]
+        pulse_force_system = HalfSinePulseForce(pulse_force_list[j])
+        total_pulse_forces[j,:] =  [pulse_force_system.get_amplitude_at_time(t) for t in time_values]
+        # modal_inl_displ =[np.dot(normalized_mode_shapes[:, j], inl_displ[j]) for j in range(len(inl_displ))] # normalized_mode_shapes[:,j]*inl_displ
+        # modal_inl_velo[j] = normalized_mode_shapes[:,j]*inl_velo
         omega_n[j] = math.sqrt(norm_stiff[j,j]/norm_mass[j,j])
         t_n[j] = (2 * math.pi) / omega_n[j]
 
@@ -115,34 +125,33 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
             plse_accl_resp = 0
 
             # Loop through individual nodes (pulse force)
-            for k in range(2):
+            for k in range(numDOF):
                 # Loop through individual pulse force at a particular node
                 for p_force_nd in pulse_force_list[k]:
-                    for p_force in p_force_nd:
-                        p0 = normalized_mode_shapes[k,j]  * p_force[0] # get the force amplitude
-                        ft_start = p_force[1] # force start  
-                        ft_end = p_force[2] # force end
-                        t_d = ft_end - ft_start # force period
-                    
-                        if(time_values[i]>ft_start and time_values[i]<=ft_end):
-                            p_0,v_0,a_0 = pulse_force_displ_response(p0,ft_start,ft_end,norm_stiff[k,k],norm_mass[k,k],time_values[i])
-                            # Add to the response
-                            plse_displ_resp = plse_displ_resp + p_0
-                            plse_velo_resp = plse_velo_resp + v_0
-                            plse_accl_resp = plse_accl_resp + a_0
-                        elif(time_values[i]>ft_end):
-                            p_0,v_0,a_0 = pulse_force_displ_response(p0,ft_start,ft_end,norm_stiff[k,k],norm_mass[k,k],time_values[i])
-                            # Add to the response
-                            plse_displ_resp = plse_displ_resp + p_0
-                            plse_velo_resp = plse_velo_resp + v_0
-                            plse_accl_resp = plse_accl_resp + a_0
+                    p0 = normalized_mode_shapes[k,j]  * p_force_nd[0] # get the force amplitude
+                    ft_start = p_force_nd[1] # force start  
+                    ft_end = p_force_nd[2] # force end
+                    t_d = ft_end - ft_start # force period
+                
+                    if(time_values[i]>ft_start and time_values[i]<=ft_end):
+                        p_0,v_0,a_0 = pulse_force_displ_response(p0,ft_start,ft_end,norm_stiff[k,k],norm_mass[k,k],time_values[i])
+                        # Add to the response
+                        plse_displ_resp = plse_displ_resp + p_0
+                        plse_velo_resp = plse_velo_resp + v_0
+                        plse_accl_resp = plse_accl_resp + a_0
+                    elif(time_values[i]>ft_end):
+                        p_0,v_0,a_0 = pulse_force_displ_response(p0,ft_start,ft_end,norm_stiff[k,k],norm_mass[k,k],time_values[i])
+                        # Add to the response
+                        plse_displ_resp = plse_displ_resp + p_0
+                        plse_velo_resp = plse_velo_resp + v_0
+                        plse_accl_resp = plse_accl_resp + a_0
 
             # Append to the displacement, velocity and acceleration response
             modal_displ_resp[j] = inl_cond_displ_resp + plse_displ_resp
             modal_velo_resp[j] =  inl_cond_velo_resp + plse_velo_resp
             modal_accl_resp[j] =  inl_cond_accl_resp + plse_accl_resp
         #_________________________________________________________________________
-        for j in range(2):
+        for j in range(numDOF):
             displacement[j,i] = np.dot( normalized_mode_shapes[j,:], modal_displ_resp)
             velocity[j,i] = np.dot( normalized_mode_shapes[j,:] ,modal_velo_resp)
             acceleration[j,i] = np.dot( normalized_mode_shapes[j,:] , modal_accl_resp)
@@ -161,6 +170,20 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
 
     print("\nNormalized Mode Shapes:")
     print(normalized_mode_shapes)
+    #_______________________________________________________________________
+    #_____________ NUMERICAL METHOD _______________________________________
+    #_______________________________________________________________________
+    displacement_numrl = np.zeros((numDOF,t_count))
+    velocity_numrl = np.zeros((numDOF,t_count))
+    acceleration_numrl = np.zeros((numDOF,t_count))
+
+
+    displacement_numrl,velocity_numrl,acceleration_numrl = mdof_linear_acceleration_method(mass_M, stiff_K, 
+                                                                                                   inl_displ, inl_velo,
+                                                                                                   total_pulse_forces, time_values, 
+                                                                                                   numDOF,t_count)
+
+
 
 
     # Plot the results
@@ -170,35 +193,40 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
     # plt.plot(time_values, total_pulse_forces, color='darkred', label='Total pulse force (f)')
     for j in range(2):
         for p_force_nd in pulse_force_list[j]:
-            for p_force in p_force_nd:
-                individual_pulse_force_system = HalfSinePulseForce([(p_force[0], p_force[1], p_force[2])])
-                individual_pulse_force = [individual_pulse_force_system.get_amplitude_at_time(t) for t in time_values]
-                td1 = p_force[2] - p_force[1]
-                plt.plot(time_values, individual_pulse_force, label=f'Node {j} Pulse Force {i+1} td/tn = {td1/t_n[j]}', color=colors[j])
+            individual_pulse_force_system = HalfSinePulseForce([(p_force_nd[0], p_force_nd[1], p_force_nd[2])])
+            individual_pulse_force = [individual_pulse_force_system.get_amplitude_at_time(t) for t in time_values]
+            td1 = p_force_nd[2] - p_force_nd[1]
+            plt.plot(time_values, individual_pulse_force, label=f'Node {j} Pulse Force {i+1} td/tn = {td1/t_n[j]}', color=colors[j])
     plt.xlabel('Time (s)')
     plt.ylabel('Pulse force')
     plt.legend()
 
     # Plot displacement
     plt.subplot(4, 1, 2)
-    plt.plot(time_values, displacement[0,:], color='darkred', label='Displacement node 1 (x)')
-    plt.plot(time_values, displacement[1,:], color='red', label='Displacement node 2 (x)')
+    # plt.plot(time_values, displacement[0,:], color='red', label='Displacement node 1 (x)')
+    plt.plot(time_values, displacement_numrl[0,:], color='red', label='Displacement node 1 numerical (x)')
+    # plt.plot(time_values, displacement[1,:], color='red', label='Displacement node 2 (x)')
+    plt.plot(time_values, displacement_numrl[1,:], color='crimson', label='Displacement node 2 numerical (x)')
     plt.xlabel('Time (s)')
     plt.ylabel('Displacement')
     plt.legend()
 
     # Plot velocity
     plt.subplot(4, 1, 3)
-    plt.plot(time_values, velocity[0,:], color='darkgreen', label='Velocity node 1 (v)')
-    plt.plot(time_values, velocity[1,:], color='green', label='Velocity node 2 (v)')
+    # plt.plot(time_values, velocity[0,:], color='green', label='Velocity node 1 (v)')
+    plt.plot(time_values, velocity_numrl[0,:], color='green', label='Velocity node numerical 1 (v)')
+    # plt.plot(time_values, velocity[1,:], color='green', label='Velocity node 2 (v)')
+    plt.plot(time_values, velocity_numrl[1,:], color='darkgreen', label='Velocity node numerical 2 (v)')
     plt.xlabel('Time (s)')
     plt.ylabel('Velocity')
     plt.legend()
 
     # Plot acceleration
     plt.subplot(4, 1, 4)
-    plt.plot(time_values, acceleration[0,:], color='darkblue', label='Acceleration node 1 (a)')
-    plt.plot(time_values, acceleration[1,:], color='blue', label='Acceleration node 2 (a)')
+    # plt.plot(time_values, acceleration[0,:], color='blue', label='Acceleration node 1 (a)')
+    plt.plot(time_values, acceleration_numrl[0,:], color='blue', label='Acceleration node numerical 1 (a)')
+    # plt.plot(time_values, acceleration[1,:], color='blue', label='Acceleration node 2 (a)')
+    plt.plot(time_values, acceleration_numrl[1,:], color='violet', label='Acceleration node numerical 2 (a)')
     plt.xlabel('Time (s)')
     plt.ylabel('Acceleration')
     plt.legend()
@@ -207,111 +235,80 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
     plt.show()
 
 
-def mdof_simple_harmonic_solution_numerical(mass_M, stiff_K, inl_displ, inl_velo, time_range, pulse_force_list):
-    # Time range
-    t_start, t_end = time_range
-    time_steps = 1000
-    delta_t = (t_end - t_start) / time_steps
+def mdof_linear_acceleration_method(mass_M, stiff_K, inl_displ, inl_velo,total_force, time_values,numDOF, time_count):
+    # Initialize the array
+    displacement_numrl = np.zeros((numDOF,time_count))
+    velocity_numrl = np.zeros((numDOF,time_count))
+    acceleration_numrl = np.zeros((numDOF,time_count))
+    
+    # initial calculation
+    # apply the initial condition to list
+    displacement_numrl[:,0] = inl_displ[:,0]
+    velocity_numrl[:,0] = inl_velo[:,0]
 
-    # Function to calculate the pulse force at a given time
-    def get_pulse_force(pulse_force_list, t):
-        force = 0.0
-        for f in pulse_force_list:
-            if f[1] <= t <= f[2]:
-                force += f[0]
-        return force
+    force_inl = [[total_force[0,0]],[total_force[1,0]]]
+    # calculate initial acceleration
+    # Get the inverse of the matrix mass_M
+    mass_inv = np.linalg.inv(mass_M)
+    accl_inl = mass_inv*(force_inl - stiff_K * inl_displ)
+    acceleration_numrl[:,0] = accl_inl[:,0]
 
-    # Central difference time integration
-    def central_difference_integration(displ_n, velo_n, t, pulse_force_list):
-        accel_n = np.linalg.solve(mass_M, get_pulse_force(pulse_force_list, t) - stiff_K @ displ_n)
-        displ_n_plus_1 = displ_n + velo_n * delta_t + 0.5 * accel_n * delta_t ** 2
-        accel_n_plus_1 = np.linalg.solve(mass_M, get_pulse_force(pulse_force_list, t + delta_t) - stiff_K @ displ_n_plus_1)
-        velo_n_plus_1 = velo_n + 0.5 * (accel_n + accel_n_plus_1) * delta_t
-        return displ_n_plus_1, velo_n_plus_1, accel_n
+    # select delta t
+    delta_t = time_values[1] - time_values[0]
+    # Kprime matrix
+    K_prime =   stiff_K + (6/(delta_t**2))*mass_M
+    K_prime_inv = np.linalg.inv(K_prime)
+    a_matrix = (6/delta_t)*mass_M
+    b_matrix = 3*mass_M
 
-    # Arrays to store the results
-    displ_results = np.zeros((2, time_steps + 1))
-    velo_results = np.zeros((2, time_steps + 1))
-    accel_results = np.zeros((2, time_steps + 1))
+    for i,t in enumerate(time_values):
+        if(i<time_count-1):
+            delta_p = total_force[:,i+1] - total_force[:,i]
+            # delta P hat
+            delta_p_hat = delta_p + np.dot(a_matrix,velocity_numrl[:,i]) + np.dot(b_matrix,acceleration_numrl[:,i])
 
-    # Set initial conditions
-    print(inl_displ)
+            # delta displacement
+            delta_u = np.dot(K_prime_inv,delta_p_hat)
+            # delta velocity
+            delta_v = (3/delta_t)*delta_u - 3*velocity_numrl[:,i] - 0.5*delta_t*acceleration_numrl[:,i]
+            # delta acceleration
+            delta_a = (6/(delta_t**2))*delta_u - (6/delta_t)*velocity_numrl[:,i] - 3*acceleration_numrl[:,i]
 
-    displ_results[:, 0] = np.array(inl_displ).flatten()
-    velo_results[:, 0] =  np.array(inl_velo).flatten()
-    accel_results[:, 0] = np.linalg.solve(mass_M, get_pulse_force(pulse_force_list[0], 0.0) - stiff_K @ displ_results[:, 0])
+            # Solution
+            displacement_numrl[:,i+1] = displacement_numrl[:,i] + delta_u
+            velocity_numrl[:,i+1] = velocity_numrl[:,i] + delta_v
+            acceleration_numrl[:,i+1] = acceleration_numrl[:,i] + delta_a
 
-    # Perform time integration to calculate the response
-    for i in range(time_steps):
-        t = t_start + i * delta_t
-        pulse_force_list_i = pulse_force_list[i % 2]  # Access the pulse force list for the current time step
-        displ_results[:, i + 1], velo_results[:, i + 1], accel_results[:, i + 1] = central_difference_integration(
-            displ_results[:, i], velo_results[:, i], t, pulse_force_list_i
-        )
-
-    ## Calculate acceleration from displacements and velocities
-    #for i in range(time_steps + 1):
-        #t = t_start + i * delta_t
-        #pulse_force_list_i = pulse_force_list[i % 2]  # Access the pulse force list for the current time step
-        #accel_results[:, i] = np.linalg.solve(mass_M, get_pulse_force(pulse_force_list_i, t) - stiff_K @ displ_results[:, i])
-
-    # Time array for plotting
-    time_array = np.linspace(t_start, t_end, time_steps + 1)
-
-    # Plotting the results
-    plt.figure(figsize=(10, 6))
-    plt.subplot(3, 1, 1)
-    plt.plot(time_array, displ_results[0],  color='darkred', label='Displacement node 1 (x)')
-    plt.plot(time_array, displ_results[1],  color='red', label='Displacement node 2 (x)')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Displacement')
-    plt.legend()
-
-    plt.subplot(3, 1, 2)
-    plt.plot(time_array, velo_results[0], color='darkgreen', label='Velocity node 1 (x)')
-    plt.plot(time_array, velo_results[1],  color='green', label='Velocity node 2 (x)')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Velocity')
-    plt.legend()
-
-    plt.subplot(3, 1, 3)
-    plt.plot(time_array, accel_results[0], color='darkblue', label='Acceleration node 1 (x)')
-    plt.plot(time_array, accel_results[1],  color='blue', label='Acceleration node 2 (x)')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Acceleration')
-    plt.legend()
-
-    plt.tight_layout()
-    plt.show()
+    return displacement_numrl,velocity_numrl,acceleration_numrl
 
 
 # Usage:
 # Mass
 mass_M1 = 20.0 # Mass M1
 mass_M2 = 20.0 # Mass M2
-mass_M = [[mass_M1,0.0],
-          [0.0,mass_M2]]
+mass_M = np.array([[mass_M1,0.0],
+                   [0.0,mass_M2]])
 
 # Stiffness
 stiff_K1 = 4.0 * 2.0 * (math.pi**2)  # Stiffness K1
 stiff_K2 = 4.0 * 2.0 * (math.pi**2)  # Stiffness K2
 stiff_K3 = 4.0 * 2.0 * (math.pi**2)  # Stiffness K2
-stiff_K = [[(stiff_K1+stiff_K2),(-stiff_K2)],
-           [(-stiff_K2),(stiff_K2+stiff_K3)]]
+stiff_K = np.array([[(stiff_K1+stiff_K2),(-stiff_K2)],
+                    [(-stiff_K2),(stiff_K2+stiff_K3)]])
 
 
 # Initial condition
-inl_displ_1 = 0.0 # initial displacement Node 1
+inl_displ_1 = 10.0 # initial displacement Node 1
 inl_velo_1 = 0.0 # initial velocity Node 1
 #_______________________________________________
 inl_displ_2 = 0.0 # initial displacement Node 2
 inl_velo_2 = 0.0 # initial velocity Node 2
 
-inl_displ = [[inl_displ_1],
-             [inl_displ_2]]
+inl_displ = np.array([[inl_displ_1],
+             [inl_displ_2]])
 
-inl_velo = [[inl_velo_1],
-            [inl_velo_2]]
+inl_velo = np.array([[inl_velo_1],
+            [inl_velo_2]])
 
 # Time range
 time_range = (0, 10)  # Time range for the simulation (start and end time)
@@ -319,7 +316,7 @@ time_range = (0, 10)  # Time range for the simulation (start and end time)
 # Create an array of pulse forces with each element as (force_amplitude, start_time, end_time)
 # Pulse force list 1
 pulse_force_list_1 = [
-    (10.0, 1.0, 5.0),
+    (0.0, 2.5, 5.0),
     (0.0, 1.0, 3.0),
     (0.0, 2.0, 4.5)
 ]
@@ -331,10 +328,9 @@ pulse_force_list_2 = [
     (0.0, 2.0, 4.5)
 ]
 
-pulse_force_list = [[pulse_force_list_1],
-                    [pulse_force_list_2]]
+pulse_force_list = [pulse_force_list_1,
+                    pulse_force_list_2]
 #____________________________________________________________________________________________________________
 
 mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo, time_range, pulse_force_list)
-mdof_simple_harmonic_solution_numerical(mass_M, stiff_K, inl_displ, inl_velo, time_range, [pulse_force_list_1,pulse_force_list_2])
 
