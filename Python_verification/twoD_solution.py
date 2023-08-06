@@ -66,6 +66,11 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
     sorted_indices = np.argsort(eigenvalues)
     natural_frequencies = np.sqrt(np.abs(eigenvalues[sorted_indices]))
     mode_shapes = eigenvectors[:, sorted_indices]
+    print("Natural frequency")
+    print(natural_frequencies)
+
+    print("mode shape")
+    print(mode_shapes)
 
     # Normalize the mode shapes
     normalized_mode_shapes = mode_shapes / np.abs(mode_shapes).max(axis=0)
@@ -96,8 +101,13 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
     velocity = np.zeros((numDOF,t_count))
     acceleration = np.zeros((numDOF,t_count))
 
-    modal_inl_displ = np.dot(normalized_mode_shapes, inl_displ)
-    modal_inl_velo = np.dot(normalized_mode_shapes, inl_velo)
+    normalized_mode_shapes_inv = np.linalg.inv(normalized_mode_shapes)
+
+    print("Inverse Normalized mode shape")
+    print(normalized_mode_shapes_inv)
+
+    modal_inl_displ = np.dot(normalized_mode_shapes_inv, inl_displ)
+    modal_inl_velo = np.dot(normalized_mode_shapes_inv, inl_velo)
     
     for j in range(numDOF):
         # sub_pulse_force_list = [item for sublist in pulse_force_list[j] for item in sublist]
@@ -115,9 +125,9 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
         modal_accl_resp =  np.zeros(numDOF) # Acceleration response
         for j in range(2):
             # Reponse due to initial condition        
-            inl_cond_displ_resp = (modal_inl_displ[j] * math.cos(omega_n[j] * time_values[i])) + ((modal_inl_velo[j] / omega_n[j]) * math.sin(omega_n[j] * time_values[i]))
-            inl_cond_velo_resp = ((-1)*modal_inl_displ[j]*omega_n[j]*math.sin(omega_n[j] * time_values[i]))+(modal_inl_velo[j]  * math.cos(omega_n[j] * time_values[i]))
-            inl_cond_accl_resp = ((-1)*modal_inl_displ[j]*omega_n[j]*omega_n[j]*math.cos(omega_n[j] * time_values[i]))-(modal_inl_velo[j] *omega_n[j] * math.sin(omega_n[j] * time_values[i]))
+            inl_cond_displ_resp = (modal_inl_displ[j] * np.cos(omega_n[j] * time_values[i])) + ((modal_inl_velo[j] / omega_n[j]) * np.sin(omega_n[j] * time_values[i]))
+            inl_cond_velo_resp = ((-1)*modal_inl_displ[j]*omega_n[j]*np.sin(omega_n[j] * time_values[i]))+(modal_inl_velo[j]  * np.cos(omega_n[j] * time_values[i]))
+            inl_cond_accl_resp = ((-1)*modal_inl_displ[j]*omega_n[j]*omega_n[j]*np.cos(omega_n[j] * time_values[i]))-(modal_inl_velo[j] *omega_n[j] * np.sin(omega_n[j] * time_values[i]))
 
             # Response due to pulse force
             plse_displ_resp = 0
@@ -152,7 +162,7 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
             modal_accl_resp[j] =  inl_cond_accl_resp + plse_accl_resp
         #_________________________________________________________________________
         for j in range(numDOF):
-            displacement[j,i] = np.dot( normalized_mode_shapes[j,:], modal_displ_resp)
+            displacement[j,i] = np.dot( normalized_mode_shapes[:,j], modal_displ_resp)
             velocity[j,i] = np.dot( normalized_mode_shapes[j,:] ,modal_velo_resp)
             acceleration[j,i] = np.dot( normalized_mode_shapes[j,:] , modal_accl_resp)
         #_________________________________________________________________________
@@ -203,30 +213,30 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
 
     # Plot displacement
     plt.subplot(4, 1, 2)
-    # plt.plot(time_values, displacement[0,:], color='red', label='Displacement node 1 (x)')
-    plt.plot(time_values, displacement_numrl[0,:], color='red', label='Displacement node 1 numerical (x)')
-    # plt.plot(time_values, displacement[1,:], color='red', label='Displacement node 2 (x)')
-    plt.plot(time_values, displacement_numrl[1,:], color='crimson', label='Displacement node 2 numerical (x)')
+    # plt.plot(time_values, displacement[0,:], color=(0.6901,0.1764,0.9686), label='Displacement node 1 (x)')
+    plt.plot(time_values, displacement_numrl[0,:], color=(0.8078,0.2,0.8784), label='Displacement node 1 numerical (x)')
+    # plt.plot(time_values, displacement[1,:], color=(0.9686,0.1764,0.7529), label='Displacement node 2 (x)')
+    plt.plot(time_values, displacement_numrl[1,:], color=(0.929,0.168,0.372), label='Displacement node 2 numerical (x)')
     plt.xlabel('Time (s)')
     plt.ylabel('Displacement')
     plt.legend()
 
     # Plot velocity
     plt.subplot(4, 1, 3)
-    # plt.plot(time_values, velocity[0,:], color='green', label='Velocity node 1 (v)')
-    plt.plot(time_values, velocity_numrl[0,:], color='green', label='Velocity node numerical 1 (v)')
-    # plt.plot(time_values, velocity[1,:], color='green', label='Velocity node 2 (v)')
-    plt.plot(time_values, velocity_numrl[1,:], color='darkgreen', label='Velocity node numerical 2 (v)')
+    plt.plot(time_values, velocity[0,:], color=(0.1058,0.9686,0.6901), label='Velocity node 1 (v)')
+    plt.plot(time_values, velocity_numrl[0,:], color=(0.1411,0.882,0.8274), label='Velocity node numerical 1 (v)')
+    plt.plot(time_values, velocity[1,:], color=(0.105,0.815,0.968), label='Velocity node 2 (v)')
+    plt.plot(time_values, velocity_numrl[1,:], color=(0.102,0.580,0.9294), label='Velocity node numerical 2 (v)')
     plt.xlabel('Time (s)')
     plt.ylabel('Velocity')
     plt.legend()
 
     # Plot acceleration
     plt.subplot(4, 1, 4)
-    # plt.plot(time_values, acceleration[0,:], color='blue', label='Acceleration node 1 (a)')
-    plt.plot(time_values, acceleration_numrl[0,:], color='blue', label='Acceleration node numerical 1 (a)')
-    # plt.plot(time_values, acceleration[1,:], color='blue', label='Acceleration node 2 (a)')
-    plt.plot(time_values, acceleration_numrl[1,:], color='violet', label='Acceleration node numerical 2 (a)')
+    plt.plot(time_values, acceleration[0,:], color=(0.968,0.8705,0.066), label='Acceleration node 1 (a)')
+    plt.plot(time_values, acceleration_numrl[0,:], color=(0.882,0.8745,0.1098), label='Acceleration node numerical 1 (a)')
+    plt.plot(time_values, acceleration[1,:], color=(0.7333,0.9686,0.066), label='Acceleration node 2 (a)')
+    plt.plot(time_values, acceleration_numrl[1,:], color=(0.427,0.929,0.066), label='Acceleration node numerical 2 (a)')
     plt.xlabel('Time (s)')
     plt.ylabel('Acceleration')
     plt.legend()
@@ -285,7 +295,7 @@ def mdof_linear_acceleration_method(mass_M, stiff_K, inl_displ, inl_velo,total_f
 # Usage:
 # Mass
 mass_M1 = 20.0 # Mass M1
-mass_M2 = 20.0 # Mass M2
+mass_M2 = 30.0 # Mass M2
 mass_M = np.array([[mass_M1,0.0],
                    [0.0,mass_M2]])
 
