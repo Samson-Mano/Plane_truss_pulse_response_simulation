@@ -69,7 +69,7 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
     print("Natural frequency")
     print(natural_frequencies)
 
-    print("mode shape")
+    print("mode shapes")
     print(mode_shapes)
 
     # Normalize the mode shapes
@@ -101,10 +101,8 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
     velocity = np.zeros((numDOF,t_count))
     acceleration = np.zeros((numDOF,t_count))
 
+    # Normalized mode shape
     normalized_mode_shapes_inv = np.linalg.inv(normalized_mode_shapes)
-
-    print("Inverse Normalized mode shape")
-    print(normalized_mode_shapes_inv)
 
     modal_inl_displ = np.dot(normalized_mode_shapes_inv, inl_displ)
     modal_inl_velo = np.dot(normalized_mode_shapes_inv, inl_velo)
@@ -144,13 +142,13 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
                     t_d = ft_end - ft_start # force period
                 
                     if(time_values[i]>ft_start and time_values[i]<=ft_end):
-                        p_0,v_0,a_0 = pulse_force_displ_response(p0,ft_start,ft_end,norm_stiff[k,k],norm_mass[k,k],time_values[i])
+                        p_0,v_0,a_0 = pulse_force_displ_response(p0,ft_start,ft_end,norm_stiff[j,j],norm_mass[j,j],time_values[i])
                         # Add to the response
                         plse_displ_resp = plse_displ_resp + p_0
                         plse_velo_resp = plse_velo_resp + v_0
                         plse_accl_resp = plse_accl_resp + a_0
                     elif(time_values[i]>ft_end):
-                        p_0,v_0,a_0 = pulse_force_displ_response(p0,ft_start,ft_end,norm_stiff[k,k],norm_mass[k,k],time_values[i])
+                        p_0,v_0,a_0 = pulse_force_displ_response(p0,ft_start,ft_end,norm_stiff[j,j],norm_mass[j,j],time_values[i])
                         # Add to the response
                         plse_displ_resp = plse_displ_resp + p_0
                         plse_velo_resp = plse_velo_resp + v_0
@@ -168,18 +166,6 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
         #_________________________________________________________________________
 
 
-    # Print the results
-    print("Normalized mass:")
-    print(norm_mass)
-    print("Normalized stiffness:")    
-    print(norm_stiff)
-
-    # Print the results
-    print("Natural Frequencies (Hz):")
-    print(natural_frequencies)
-
-    print("\nNormalized Mode Shapes:")
-    print(normalized_mode_shapes)
     #_______________________________________________________________________
     #_____________ NUMERICAL METHOD _______________________________________
     #_______________________________________________________________________
@@ -213,9 +199,9 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
 
     # Plot displacement
     plt.subplot(4, 1, 2)
-    # plt.plot(time_values, displacement[0,:], color=(0.6901,0.1764,0.9686), label='Displacement node 1 (x)')
+    plt.plot(time_values, displacement[0,:], color=(0.6901,0.1764,0.9686), label='Displacement node 1 (x)')
     plt.plot(time_values, displacement_numrl[0,:], color=(0.8078,0.2,0.8784), label='Displacement node 1 numerical (x)')
-    # plt.plot(time_values, displacement[1,:], color=(0.9686,0.1764,0.7529), label='Displacement node 2 (x)')
+    plt.plot(time_values, displacement[1,:], color=(0.9686,0.1764,0.7529), label='Displacement node 2 (x)')
     plt.plot(time_values, displacement_numrl[1,:], color=(0.929,0.168,0.372), label='Displacement node 2 numerical (x)')
     plt.xlabel('Time (s)')
     plt.ylabel('Displacement')
@@ -260,7 +246,7 @@ def mdof_linear_acceleration_method(mass_M, stiff_K, inl_displ, inl_velo,total_f
     # calculate initial acceleration
     # Get the inverse of the matrix mass_M
     mass_inv = np.linalg.inv(mass_M)
-    accl_inl = mass_inv*(force_inl - stiff_K * inl_displ)
+    accl_inl = np.dot(mass_inv,(force_inl - np.dot(stiff_K , inl_displ)))
     acceleration_numrl[:,0] = accl_inl[:,0]
 
     # select delta t
@@ -280,9 +266,9 @@ def mdof_linear_acceleration_method(mass_M, stiff_K, inl_displ, inl_velo,total_f
             # delta displacement
             delta_u = np.dot(K_prime_inv,delta_p_hat)
             # delta velocity
-            delta_v = (3/delta_t)*delta_u - 3*velocity_numrl[:,i] - 0.5*delta_t*acceleration_numrl[:,i]
+            delta_v = (3/delta_t)*delta_u - (3*velocity_numrl[:,i]) - (0.5*delta_t*acceleration_numrl[:,i])
             # delta acceleration
-            delta_a = (6/(delta_t**2))*delta_u - (6/delta_t)*velocity_numrl[:,i] - 3*acceleration_numrl[:,i]
+            delta_a = (6/(delta_t**2))*delta_u - ((6/delta_t)*velocity_numrl[:,i]) - (3*acceleration_numrl[:,i])
 
             # Solution
             displacement_numrl[:,i+1] = displacement_numrl[:,i] + delta_u
@@ -308,7 +294,7 @@ stiff_K = np.array([[(stiff_K1+stiff_K2),(-stiff_K2)],
 
 
 # Initial condition
-inl_displ_1 = 10.0 # initial displacement Node 1
+inl_displ_1 = 0.0 # initial displacement Node 1
 inl_velo_1 = 0.0 # initial velocity Node 1
 #_______________________________________________
 inl_displ_2 = 0.0 # initial displacement Node 2
@@ -326,15 +312,15 @@ time_range = (0, 10)  # Time range for the simulation (start and end time)
 # Create an array of pulse forces with each element as (force_amplitude, start_time, end_time)
 # Pulse force list 1
 pulse_force_list_1 = [
-    (0.0, 2.5, 5.0),
+    (1000.0, 1.0, 2.0),
     (0.0, 1.0, 3.0),
-    (0.0, 2.0, 4.5)
+    (1200.0, 3.0, 4.5)
 ]
 
 # Pulse force list 2
 pulse_force_list_2 = [
     (0.0, 1.0, 2.5),
-    (0.0, 1.0, 3.0),
+    (-1000.0, 1.0, 2.0),
     (0.0, 2.0, 4.5)
 ]
 
