@@ -233,8 +233,8 @@ def simple_harmonic_motion(mass_M, stiff_K, inl_displ, inl_velo, time_range, pul
 # Usage:
 mass_M = 2.0        # Mass M
 stiff_K = 4.0 * 2.0 * (math.pi**2)  # Stiffness K
-inl_displ = 0.0 # initial displacement
-inl_velo = 0.0 # initial velocity
+inl_displ = 1.0 # initial displacement
+inl_velo = -0.5 # initial velocity
 
 time_range = (0, 10)  # Time range for the simulation (start and end time)
 

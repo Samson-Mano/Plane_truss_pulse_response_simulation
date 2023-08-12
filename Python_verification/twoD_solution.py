@@ -287,18 +287,18 @@ mass_M = np.array([[mass_M1,0.0],
 
 # Stiffness
 stiff_K1 = 4.0 * 2.0 * (math.pi**2)  # Stiffness K1
-stiff_K2 = 4.0 * 2.0 * (math.pi**2)  # Stiffness K2
-stiff_K3 = 4.0 * 2.0 * (math.pi**2)  # Stiffness K2
+stiff_K2 = 8.0 * 2.0 * (math.pi**2)  # Stiffness K2
+stiff_K3 = 1.0 * 2.0 * (math.pi**2)  # Stiffness K2
 stiff_K = np.array([[(stiff_K1+stiff_K2),(-stiff_K2)],
                     [(-stiff_K2),(stiff_K2+stiff_K3)]])
 
 
 # Initial condition
-inl_displ_1 = 0.0 # initial displacement Node 1
+inl_displ_1 = 20.0 # initial displacement Node 1
 inl_velo_1 = 0.0 # initial velocity Node 1
 #_______________________________________________
 inl_displ_2 = 0.0 # initial displacement Node 2
-inl_velo_2 = 0.0 # initial velocity Node 2
+inl_velo_2 = -5.0 # initial velocity Node 2
 
 inl_displ = np.array([[inl_displ_1],
              [inl_displ_2]])
@@ -307,20 +307,20 @@ inl_velo = np.array([[inl_velo_1],
             [inl_velo_2]])
 
 # Time range
-time_range = (0, 10)  # Time range for the simulation (start and end time)
+time_range = (0, 20)  # Time range for the simulation (start and end time)
 
 # Create an array of pulse forces with each element as (force_amplitude, start_time, end_time)
 # Pulse force list 1
 pulse_force_list_1 = [
-    (1000.0, 1.0, 2.0),
+    (1000.0, 5.0, 7.0),
     (0.0, 1.0, 3.0),
-    (1200.0, 3.0, 4.5)
+    (1200.0, 8.0, 9.5)
 ]
 
 # Pulse force list 2
 pulse_force_list_2 = [
     (0.0, 1.0, 2.5),
-    (-1000.0, 1.0, 2.0),
+    (-1000.0, 6.5, 8.5),
     (0.0, 2.0, 4.5)
 ]
 
