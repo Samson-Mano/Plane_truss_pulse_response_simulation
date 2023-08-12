@@ -64,16 +64,16 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
 
     # Sort the eigenvalues and eigenvectors in ascending order
     sorted_indices = np.argsort(eigenvalues)
-    natural_frequencies = np.sqrt(np.abs(eigenvalues[sorted_indices]))
+    natural_frequencies = np.sqrt(np.abs(eigenvalues[sorted_indices]))/(2*np.pi)
     mode_shapes = eigenvectors[:, sorted_indices]
     print("Natural frequency")
     print(natural_frequencies)
 
-    print("mode shapes")
-    print(mode_shapes)
-
     # Normalize the mode shapes
     normalized_mode_shapes = mode_shapes / np.abs(mode_shapes).max(axis=0)
+
+    print("Normalized mode shapes")
+    print(normalized_mode_shapes)
 
     # Orthogonality of mass matrix
     norm_mass = normalized_mode_shapes.T @ mass_M @ normalized_mode_shapes 
@@ -160,7 +160,7 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
             modal_accl_resp[j] =  inl_cond_accl_resp + plse_accl_resp
         #_________________________________________________________________________
         for j in range(numDOF):
-            displacement[j,i] = np.dot( normalized_mode_shapes[:,j], modal_displ_resp)
+            displacement[j,i] = np.dot( normalized_mode_shapes[j,:], modal_displ_resp)
             velocity[j,i] = np.dot( normalized_mode_shapes[j,:] ,modal_velo_resp)
             acceleration[j,i] = np.dot( normalized_mode_shapes[j,:] , modal_accl_resp)
         #_________________________________________________________________________
@@ -280,25 +280,25 @@ def mdof_linear_acceleration_method(mass_M, stiff_K, inl_displ, inl_velo,total_f
 
 # Usage:
 # Mass
-mass_M1 = 20.0 # Mass M1
-mass_M2 = 30.0 # Mass M2
+mass_M1 = 200000.0 # Mass M1
+mass_M2 = 100000.0 # Mass M2
 mass_M = np.array([[mass_M1,0.0],
                    [0.0,mass_M2]])
 
 # Stiffness
-stiff_K1 = 4.0 * 2.0 * (math.pi**2)  # Stiffness K1
-stiff_K2 = 8.0 * 2.0 * (math.pi**2)  # Stiffness K2
-stiff_K3 = 1.0 * 2.0 * (math.pi**2)  # Stiffness K2
+stiff_K1 = 621000 #4.0 * 2.0 * (math.pi**2)  # Stiffness K1
+stiff_K2 = 414000 #8.0 * 2.0 * (math.pi**2)  # Stiffness K2
+stiff_K3 = 1242010 #1.0 * 2.0 * (math.pi**2)  # Stiffness K2
 stiff_K = np.array([[(stiff_K1+stiff_K2),(-stiff_K2)],
                     [(-stiff_K2),(stiff_K2+stiff_K3)]])
 
 
 # Initial condition
-inl_displ_1 = 20.0 # initial displacement Node 1
+inl_displ_1 = 10.0 # initial displacement Node 1
 inl_velo_1 = 0.0 # initial velocity Node 1
 #_______________________________________________
-inl_displ_2 = 0.0 # initial displacement Node 2
-inl_velo_2 = -5.0 # initial velocity Node 2
+inl_displ_2 = -20.0 # initial displacement Node 2
+inl_velo_2 = 0.0 # initial velocity Node 2
 
 inl_displ = np.array([[inl_displ_1],
              [inl_displ_2]])
@@ -312,15 +312,15 @@ time_range = (0, 20)  # Time range for the simulation (start and end time)
 # Create an array of pulse forces with each element as (force_amplitude, start_time, end_time)
 # Pulse force list 1
 pulse_force_list_1 = [
-    (1000.0, 5.0, 7.0),
+    (0.0, 5.0, 7.0),
     (0.0, 1.0, 3.0),
-    (1200.0, 8.0, 9.5)
+    (0.0, 8.0, 9.5)
 ]
 
 # Pulse force list 2
 pulse_force_list_2 = [
     (0.0, 1.0, 2.5),
-    (-1000.0, 6.5, 8.5),
+    (0.0, 6.5, 8.5),
     (0.0, 2.0, 4.5)
 ]
 

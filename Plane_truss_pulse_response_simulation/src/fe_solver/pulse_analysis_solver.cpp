@@ -270,9 +270,13 @@ void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& m
 		numDOF,
 		reducedDOF);
 
+	// Inverse the eigen vectors
+	Eigen::MatrixXd reduced_eigenVectorsMatrix_inv_matrix = reduced_eigenVectorsMatrix.inverse();
+
+
 	// apply modal decomposition of the initial displacements
-	modal_reducedInitialDisplacementMatrix = reduced_eigenVectorsMatrix * reducedInitialDisplacementMatrix;
-	modal_reducedInitialVelocityMatrix = reduced_eigenVectorsMatrix * reducedInitialVelocityMatrix;
+	modal_reducedInitialDisplacementMatrix = reduced_eigenVectorsMatrix_inv_matrix * reducedInitialDisplacementMatrix;
+	modal_reducedInitialVelocityMatrix = reduced_eigenVectorsMatrix_inv_matrix * reducedInitialVelocityMatrix;
 }
 
 void pulse_analysis_solver::create_pulse_load_matrices(pulse_load_data& pulse_loads,
