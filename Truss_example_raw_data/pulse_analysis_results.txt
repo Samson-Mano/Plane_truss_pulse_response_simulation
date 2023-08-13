@@ -1,8 +1,0 @@
-Modal Initial Displacement Matrix
--6.21093
- 22.1264
-
-Modal Initial Velocity Matrix
-0
-0
-

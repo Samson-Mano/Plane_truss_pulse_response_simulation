@@ -29,4 +29,4 @@ ptms, 1, 100, 100
 ptms, 3, 100, 100
 ilcd, 8, 10, 0, 10, 0
 ilcd, 7, -10, 0, -10, 0
-mtrl, 0, Default material, 207000, 7.83e-09, 6000.02
+mtrl, 0, Default material, 207000, 7.83e-03, 6000.02

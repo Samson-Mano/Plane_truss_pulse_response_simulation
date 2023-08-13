@@ -43,7 +43,7 @@ class pulse_analysis_solver
 public:	
 	const double m_pi = 3.14159265358979323846;
 	const double epsilon = 0.000001;
-	bool print_matrix = true;
+	bool print_matrix = false;
 
 	pulse_analysis_solver();
 	~pulse_analysis_solver();
@@ -80,7 +80,7 @@ private:
 		const load_data& ld,
 		const nodes_list_store& model_nodes,
 		const Eigen::MatrixXd& globalDOFMatrix,
-		const Eigen::MatrixXd& reduced_eigenVectorsMatrix,
+		const Eigen::MatrixXd& reduced_eigenVectorsMatrix_transpose,
 		const int& numDOF, 
 		const int& reducedDOF);
 

@@ -21,9 +21,11 @@ def pulse_force_displ_response(force_ampl_p0,force_start_time,force_end_time,sti
     T_n =  (2 * math.pi) / omega_n # Natural period
     t_d = force_end_time - force_start_time # Force period
 
+    displ,velo,accl = 0,0,0
+
     if(time_val>=force_start_time):
         t_at = time_val - force_start_time
-        if(time_val<force_end_time):
+        if(time_val<=force_end_time):
             if(abs((t_d/T_n) - 0.5) < 0.000001):
                 k_fact = (force_ampl_p0 / (2*stiff_K))
                 displ = k_fact *(math.sin(omega_n*t_at) - (omega_n * t_at*math.cos(omega_n*t_at)))
@@ -80,7 +82,7 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
     norm_stiff = normalized_mode_shapes.T @ stiff_K @ normalized_mode_shapes 
 
     # Generate time values for the simulation
-    t_count = 1000 # time step count
+    t_count = 101 # time step count
     time_values = np.linspace(time_range[0], time_range[1], t_count)
     t_step = (time_range[1] - time_range[0])/ t_count # time step
 
@@ -180,7 +182,11 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
                                                                                                    numDOF,t_count)
 
 
-
+    ## Print the values
+    ## create a 2D array with time_values, displacement[0,:] and displacement[1,:]
+    # data = np.array([time_values, displacement[0,:], displacement[1,:]]).T
+    ## save the data to a file named 'output.txt' with a header
+    # np.savetxt('output.txt', data, header='time_values displacement[0,:] displacement[1,:]', fmt='%.4f', delimiter=',')
 
     # Plot the results
     plt.figure(figsize=(10, 8))
@@ -294,10 +300,10 @@ stiff_K = np.array([[(stiff_K1+stiff_K2),(-stiff_K2)],
 
 
 # Initial condition
-inl_displ_1 = 10.0 # initial displacement Node 1
+inl_displ_1 = 0.0 # initial displacement Node 1
 inl_velo_1 = 0.0 # initial velocity Node 1
 #_______________________________________________
-inl_displ_2 = -20.0 # initial displacement Node 2
+inl_displ_2 = 0.0 # initial displacement Node 2
 inl_velo_2 = 0.0 # initial velocity Node 2
 
 inl_displ = np.array([[inl_displ_1],
@@ -307,20 +313,20 @@ inl_velo = np.array([[inl_velo_1],
             [inl_velo_2]])
 
 # Time range
-time_range = (0, 20)  # Time range for the simulation (start and end time)
+time_range = (0, 10)  # Time range for the simulation (start and end time)
 
 # Create an array of pulse forces with each element as (force_amplitude, start_time, end_time)
 # Pulse force list 1
 pulse_force_list_1 = [
     (0.0, 5.0, 7.0),
-    (0.0, 1.0, 3.0),
+    (20000000.0, 0.0, 3.0),
     (0.0, 8.0, 9.5)
 ]
 
 # Pulse force list 2
 pulse_force_list_2 = [
     (0.0, 1.0, 2.5),
-    (0.0, 6.5, 8.5),
+    (-25000000.0, 6.5, 8.5),
     (0.0, 2.0, 4.5)
 ]
 

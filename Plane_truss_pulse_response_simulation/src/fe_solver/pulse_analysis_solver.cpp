@@ -87,7 +87,7 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 			ld,
 			model_nodes,
 			md_solver.globalDOFMatrix,
-			md_solver.reduced_eigenVectorsMatrix,
+			md_solver.reduced_eigenVectorsMatrix.transpose(),
 			md_solver.numDOF,
 			md_solver.reducedDOF);
 
@@ -98,6 +98,11 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 	// Pulse Response
 	std::unordered_map<int, pulse_node_result> node_results;
 	int r_id = 0;
+
+
+	//std::ofstream temp_output_file;
+	//temp_output_file.open("pulse_analysis_results_node.txt");
+	//std::stringstream temp_displ_str;
 
 	for (double time_t = 0.0; time_t <= total_simulation_time; time_t = time_t + time_interval)
 	{
@@ -161,6 +166,20 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 		displ_ampl_RespMatrix.setZero();
 
 		displ_ampl_RespMatrix = md_solver.globalSupportInclinationMatrix * displ_ampl_RespMatrix_b4supp_trans;
+
+		/*
+		// Print the displacement response matrix
+		temp_displ_str.str("");
+		temp_displ_str.clear();
+		// time
+		temp_displ_str << time_t;
+
+		for (int i = 0; i < md_solver.numDOF; i++)
+		{
+			temp_displ_str << ","<< displ_ampl_RespMatrix(i,0);
+		}
+		temp_output_file << temp_displ_str.str() << std::endl;
+		*/
 
 		// Store the results to node results
 		for (auto& nd_m : model_nodes.nodeMap)
@@ -283,7 +302,7 @@ void pulse_analysis_solver::create_pulse_load_matrices(pulse_load_data& pulse_lo
 	const load_data& ld,
 	const nodes_list_store& model_nodes,
 	const Eigen::MatrixXd& globalDOFMatrix,
-	const Eigen::MatrixXd& reduced_eigenVectorsMatrix,
+	const Eigen::MatrixXd& reduced_eigenVectorsMatrix_transpose,
 	const int& numDOF,
 	const int& reducedDOF)
 {
@@ -341,7 +360,9 @@ void pulse_analysis_solver::create_pulse_load_matrices(pulse_load_data& pulse_lo
 	modal_reducedLoadamplMatrix.setZero();
 
 
-	modal_reducedLoadamplMatrix = reduced_eigenVectorsMatrix * reducedLoadamplMatrix;
+	modal_reducedLoadamplMatrix = reduced_eigenVectorsMatrix_transpose * reducedLoadamplMatrix;
+	// std::cout << modal_reducedLoadamplMatrix << std::endl;
+
 
 	//______________________________________________________________________________________________
 	// Copy the data to pulse load data variable
@@ -433,6 +454,62 @@ void pulse_analysis_solver::get_steady_state_pulse_soln(double& steady_state_dis
 	double modal_omega_n = std::sqrt(modal_stiff / modal_mass); // Modal omega n
 	double modal_omega_f = m_pi / (modal_force_endtime - modal_force_starttime);
 
+	// natural time period
+	double T_n = (2.0 * m_pi) / modal_omega_n;
+	// Force period
+	double t_d = (modal_force_endtime - modal_force_starttime);
+	// time at
+	double t_at = 0.0;
+
+	steady_state_displ_resp = 0.0;
+
+	// Check whether the current time is greater than the force start time
+	if (time_t >= modal_force_starttime)
+	{
+		t_at = time_t - modal_force_starttime;
+		if (time_t <= modal_force_endtime)
+		{
+			// current time is within the force period
+			if (std::abs((t_d / T_n) - 0.5) < 0.000001)
+			{
+				// Resonance case
+				double k_fact = (modal_force_ampl / (2.0 * modal_stiff));
+				steady_state_displ_resp = k_fact * (std::sin(modal_omega_n * t_at) - (modal_omega_n * t_at * std::cos(modal_omega_n * t_at)));
+			}
+			else
+			{
+				// Normal case
+				double const1 = m_pi/ (modal_omega_n * t_d);
+				double const2 = 1.0 - std::pow(const1,2);
+				double k_fact = (modal_force_ampl / modal_stiff) * (1 / const2);
+				steady_state_displ_resp = k_fact * (std::sin((m_pi / t_d) * t_at) - (const1 * std::sin(modal_omega_n * t_at)));
+			}
+		}
+		else if (time_t > modal_force_endtime)
+		{
+			// current time is over the force period
+			if (std::abs((t_d / T_n) - 0.5) < 0.000001)
+			{
+				// Resonance case
+				double k_fact = ((modal_force_ampl * m_pi) / (2.0 * modal_stiff));
+				steady_state_displ_resp = k_fact * std::cos((modal_omega_n * t_at) - m_pi);
+			}
+			else
+			{
+				// Normal case
+				double const1 = m_pi / (modal_omega_n * t_d);
+				double const2 = std::pow(const1, 2)-1.0;
+				double k_fact = (modal_force_ampl / modal_stiff) * ((2 * const1) / const2) * std::cos(modal_omega_n * t_d * 0.5);
+				steady_state_displ_resp = k_fact * std::sin(modal_omega_n * (t_at - (t_d * 0.5)));
+			}
+		}
+	}
+
+
+
+
+
+	/*
 	if (std::abs(modal_omega_f - modal_omega_n) < epsilon)
 	{
 		if (modal_omega_n < epsilon)
@@ -459,6 +536,7 @@ void pulse_analysis_solver::get_steady_state_pulse_soln(double& steady_state_dis
 			(std::sin(modal_omega_n * (time_t - modal_force_starttime)) -
 				(modal_omega_n * (time_t - modal_force_starttime)) * std::cos(modal_omega_n * (time_t - modal_force_starttime)));
 	}
+	*/
 }
 
 void pulse_analysis_solver::map_pulse_analysis_results(pulse_analysis_result_store& pulse_response_result,

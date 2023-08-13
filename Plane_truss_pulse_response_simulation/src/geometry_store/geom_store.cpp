@@ -172,7 +172,7 @@ void geom_store::read_varai2d(std::ifstream& input_file)
 	material_data inpt_material;
 	inpt_material.material_id = 0; // Get the material id
 	inpt_material.material_name = "Default material"; //Default material name
-	inpt_material.mat_density = 7.83 * std::pow(10, -9); // tons/mm3
+	inpt_material.mat_density = 7.83 * std::pow(10, -7); // tons/mm3
 	inpt_material.youngs_mod = 2.07 * std::pow(10, 5); //  MPa
 	inpt_material.cs_area = cs_area; // mm2  (pi * D^2)/4
 
@@ -276,7 +276,7 @@ void geom_store::read_dxfdata(std::ostringstream& input_data)
 	material_data inpt_material;
 	inpt_material.material_id = 0; // Get the material id
 	inpt_material.material_name = "Default material"; //Default material name
-	inpt_material.mat_density = 7.83 * std::pow(10, -9); // tons/mm3
+	inpt_material.mat_density = 7.83 * std::pow(10, -7); // tons/mm3
 	inpt_material.youngs_mod = 2.07 * std::pow(10, 5); //  MPa
 	inpt_material.cs_area = cs_area; // mm2
 
