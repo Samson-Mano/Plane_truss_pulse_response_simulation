@@ -222,6 +222,9 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 
 	// Analysis complete
 	is_pulse_analysis_complete = true;
+
+	//____________________________________________________________________________________________________________________
+	output_file.close();
 }
 
 void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& modal_reducedInitialDisplacementMatrix,
