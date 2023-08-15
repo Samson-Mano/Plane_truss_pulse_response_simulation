@@ -72,14 +72,17 @@ private:
 		const nodeinlcond_list_store& model_inlcond,
 		const nodes_list_store& model_nodes,
 		const Eigen::MatrixXd& globalDOFMatrix,
+		const Eigen::MatrixXd& globalSupportInclinationMatrix,
 		const Eigen::MatrixXd& reduced_eigenVectorsMatrix,
 		const int& numDOF,
-		const int& reducedDOF);
+		const int& reducedDOF,
+		std::ofstream& output_file);
 
 	void create_pulse_load_matrices(pulse_load_data& pulse_loads,
 		const load_data& ld,
 		const nodes_list_store& model_nodes,
 		const Eigen::MatrixXd& globalDOFMatrix,
+		const Eigen::MatrixXd& globalSupportInclinationMatrix,
 		const Eigen::MatrixXd& reduced_eigenVectorsMatrix_transpose,
 		const int& numDOF, 
 		const int& reducedDOF);
@@ -88,13 +91,15 @@ private:
 		const Eigen::MatrixXd& globalMatrix,
 		const Eigen::MatrixXd& globalDOFMatrix,
 		const int& numDOF,
-		const int& reducedDOF);
+		const int& reducedDOF,
+		std::ofstream& output_file);
 
 	void get_global_resp_matrix(Eigen::MatrixXd& displ_ampl_RespMatrix_b4supp_trans,
 		const Eigen::MatrixXd& displ_ampl_RespMatrix_reduced,
 		const Eigen::MatrixXd& globalDOFMatrix,
 		const int& numDOF,
-		const int& reducedDOF);
+		const int& reducedDOF,
+		std::ofstream& output_file);
 
 	void get_steady_state_initial_condition_soln(double& steady_state_displ_resp,
 		const double& time_t,

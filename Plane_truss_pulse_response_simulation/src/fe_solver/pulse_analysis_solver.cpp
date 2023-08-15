@@ -42,6 +42,11 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 	// Assign the node id map
 	this->nodeid_map = md_solver.nodeid_map;
 
+	//___________________________________________________________________________________
+	// Create a file to keep track of frequency response matrices
+	std::ofstream output_file;
+	output_file.open("pulse_analysis_results.txt");
+
 	//--------------------------------------------------------------------------------------------------------------------
 	// Create modal reduced intial condition matrices
 	Eigen::MatrixXd modal_reducedInitialDisplacementMatrix(md_solver.reducedDOF, 1);
@@ -52,13 +57,13 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 		model_inlcond,
 		model_nodes,
 		md_solver.globalDOFMatrix,
+		md_solver.globalSupportInclinationMatrix,
 		md_solver.reduced_eigenVectorsMatrix,
 		md_solver.numDOF,
-		md_solver.reducedDOF);
+		md_solver.reducedDOF,
+		output_file);
+
 	//___________________________________________________________________________________
-	// Create a file to keep track of frequency response matrices
-	std::ofstream output_file;
-	output_file.open("pulse_analysis_results.txt");
 
 	if (print_matrix == true)
 	{
@@ -87,6 +92,7 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 			ld,
 			model_nodes,
 			md_solver.globalDOFMatrix,
+			md_solver.globalSupportInclinationMatrix,
 			md_solver.reduced_eigenVectorsMatrix.transpose(),
 			md_solver.numDOF,
 			md_solver.reducedDOF);
@@ -159,7 +165,8 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 			displ_ampl_RespMatrix_reduced,
 			md_solver.globalDOFMatrix,
 			md_solver.numDOF,
-			md_solver.reducedDOF);
+			md_solver.reducedDOF,
+			output_file);
 
 		// Apply support transformation
 		Eigen::MatrixXd displ_ampl_RespMatrix(md_solver.numDOF, 1);
@@ -167,19 +174,19 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 
 		displ_ampl_RespMatrix = md_solver.globalSupportInclinationMatrix * displ_ampl_RespMatrix_b4supp_trans;
 
-		/*
-		// Print the displacement response matrix
-		temp_displ_str.str("");
-		temp_displ_str.clear();
-		// time
-		temp_displ_str << time_t;
+		
+		//// Print the displacement response matrix
+		//temp_displ_str.str("");
+		//temp_displ_str.clear();
+		//// time
+		//temp_displ_str << time_t;
 
-		for (int i = 0; i < md_solver.numDOF; i++)
-		{
-			temp_displ_str << ","<< displ_ampl_RespMatrix(i,0);
-		}
-		temp_output_file << temp_displ_str.str() << std::endl;
-		*/
+		//for (int i = 0; i < md_solver.numDOF; i++)
+		//{
+		//	temp_displ_str << ","<< displ_ampl_RespMatrix(i,0);
+		//}
+		//temp_output_file << temp_displ_str.str() << std::endl;
+		
 
 		// Store the results to node results
 		for (auto& nd_m : model_nodes.nodeMap)
@@ -202,6 +209,8 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 
 		r_id++;
 	}
+
+	//temp_output_file.close();
 
 	// Map the results
 	map_pulse_analysis_results(pulse_response_result,
@@ -232,9 +241,11 @@ void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& m
 	const nodeinlcond_list_store& model_inlcond,
 	const nodes_list_store& model_nodes,
 	const Eigen::MatrixXd& globalDOFMatrix,
+	const Eigen::MatrixXd& globalSupportInclinationMatrix,
 	const Eigen::MatrixXd& reduced_eigenVectorsMatrix,
 	const int& numDOF,
-	const int& reducedDOF)
+	const int& reducedDOF,
+	std::ofstream& output_file)
 {
 	// Create a global initial condition matrix
 	Eigen::MatrixXd globalInitialDisplacementMatrix(numDOF, 1);
@@ -271,6 +282,11 @@ void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& m
 		globalInitialVelocityMatrix.block<2, 1>(n_id * 2, 0) += nodeinitialVelocityMatrix.block<2, 1>(0, 0);
 	}
 
+	// Apply support inclination transformation to Global initial displacement and velocity matrices
+	globalInitialDisplacementMatrix = globalSupportInclinationMatrix.transpose() * globalInitialDisplacementMatrix;
+	globalInitialVelocityMatrix = globalSupportInclinationMatrix.transpose() * globalInitialVelocityMatrix;
+
+
 	// Reduce the intial condition matrix with the degree of freedom 
 	Eigen::MatrixXd reducedInitialDisplacementMatrix(reducedDOF, 1);
 	Eigen::MatrixXd reducedInitialVelocityMatrix(reducedDOF, 1);
@@ -283,14 +299,16 @@ void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& m
 		globalInitialDisplacementMatrix,
 		globalDOFMatrix,
 		numDOF,
-		reducedDOF);
+		reducedDOF,
+		output_file);
 
 	// reduced initial velocity matrix
 	get_reduced_global_matrix(reducedInitialVelocityMatrix,
 		globalInitialVelocityMatrix,
 		globalDOFMatrix,
 		numDOF,
-		reducedDOF);
+		reducedDOF,
+		output_file);
 
 	// Inverse the eigen vectors
 	Eigen::MatrixXd reduced_eigenVectorsMatrix_inv_matrix = reduced_eigenVectorsMatrix.inverse();
@@ -305,6 +323,7 @@ void pulse_analysis_solver::create_pulse_load_matrices(pulse_load_data& pulse_lo
 	const load_data& ld,
 	const nodes_list_store& model_nodes,
 	const Eigen::MatrixXd& globalDOFMatrix,
+	const Eigen::MatrixXd& globalSupportInclinationMatrix,
 	const Eigen::MatrixXd& reduced_eigenVectorsMatrix_transpose,
 	const int& numDOF,
 	const int& reducedDOF)
@@ -334,6 +353,10 @@ void pulse_analysis_solver::create_pulse_load_matrices(pulse_load_data& pulse_lo
 	globalLoadamplMatrix.setZero();
 
 	globalLoadamplMatrix.block<2, 1>(n_id * 2, 0) += nodeLoadMatrix.block<2, 1>(0, 0);
+
+	//______________________________________________________________________________________________
+	// Apply support inclination transformation to Global load matrices
+	globalLoadamplMatrix = globalSupportInclinationMatrix.transpose() * globalLoadamplMatrix;
 
 	//______________________________________________________________________________________________
 	// Reduce the global load matrix with DOF
@@ -381,7 +404,8 @@ void pulse_analysis_solver::get_reduced_global_matrix(Eigen::MatrixXd& reducedgl
 	const Eigen::MatrixXd& globalMatrix,
 	const Eigen::MatrixXd& globalDOFMatrix,
 	const int& numDOF,
-	const int& reducedDOF)
+	const int& reducedDOF,
+	std::ofstream& output_file)
 {
 	// Get the reduced global matrix with the Degree of freedom
 	int r = 0;
@@ -407,7 +431,8 @@ void pulse_analysis_solver::get_global_resp_matrix(Eigen::MatrixXd& displ_ampl_R
 	const Eigen::MatrixXd& displ_ampl_RespMatrix_reduced,
 	const Eigen::MatrixXd& globalDOFMatrix,
 	const int& numDOF,
-	const int& reducedDOF)
+	const int& reducedDOF,
+	std::ofstream& output_file)
 {
 	// Get global response matrix from the reduced matrices
 	// Loop throug the Degree of freedom of indices

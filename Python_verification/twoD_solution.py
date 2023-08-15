@@ -182,11 +182,11 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
                                                                                                    numDOF,t_count)
 
 
-    ## Print the values
-    ## create a 2D array with time_values, displacement[0,:] and displacement[1,:]
-    # data = np.array([time_values, displacement[0,:], displacement[1,:]]).T
-    ## save the data to a file named 'output.txt' with a header
-    # np.savetxt('output.txt', data, header='time_values displacement[0,:] displacement[1,:]', fmt='%.4f', delimiter=',')
+    # Print the values
+    # create a 2D array with time_values, displacement[0,:] and displacement[1,:]
+    data = np.array([time_values, displacement[0,:], displacement[1,:]]).T
+    # save the data to a file named 'output.txt' with a header
+    np.savetxt('output.txt', data, header='time_values displacement[0,:] displacement[1,:]', fmt='%.4f', delimiter=',')
 
     # Plot the results
     plt.figure(figsize=(10, 8))
@@ -300,10 +300,10 @@ stiff_K = np.array([[(stiff_K1+stiff_K2),(-stiff_K2)],
 
 
 # Initial condition
-inl_displ_1 = 0.0 # initial displacement Node 1
+inl_displ_1 = 10.0 # initial displacement Node 1
 inl_velo_1 = 0.0 # initial velocity Node 1
 #_______________________________________________
-inl_displ_2 = 0.0 # initial displacement Node 2
+inl_displ_2 = -20.0 # initial displacement Node 2
 inl_velo_2 = 0.0 # initial velocity Node 2
 
 inl_displ = np.array([[inl_displ_1],
