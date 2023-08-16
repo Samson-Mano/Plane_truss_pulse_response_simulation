@@ -2115,4 +2115,4 @@ cnst, 149, 1, 90
 cnst, 421, 1, 0
 cnst, 285, 1, 90
 cnst, 0, 1, 0
-mtrl, 0, Default material, 207000, 7.83e-03, 6000.02
+mtrl, 0, Default material, 207, 7.83e-03, 6000.02

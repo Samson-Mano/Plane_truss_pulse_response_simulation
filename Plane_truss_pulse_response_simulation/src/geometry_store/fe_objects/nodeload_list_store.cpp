@@ -92,6 +92,8 @@ void nodeload_list_store::set_buffer()
 	if (load_count == 0)
 	{
 		// No load to paint
+		// Set the load lables
+		load_value_labels.clear_labels();
 		return;
 	}
 

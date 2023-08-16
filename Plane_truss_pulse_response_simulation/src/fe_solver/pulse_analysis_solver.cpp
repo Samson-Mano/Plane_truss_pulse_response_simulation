@@ -266,7 +266,7 @@ void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& m
 		nodeinitialDisplacementMatrix.setZero();
 
 		nodeinitialDisplacementMatrix.coeffRef(0, 0) = inlc.inl_displacement_x;
-		nodeinitialDisplacementMatrix.coeffRef(1, 0) = inlc.inl_displacement_y;
+		nodeinitialDisplacementMatrix.coeffRef(1, 0) = (-1.0) * inlc.inl_displacement_y;
 
 		// global initial displacement matrix
 		globalInitialDisplacementMatrix.block<2, 1>(n_id * 2, 0) += nodeinitialDisplacementMatrix.block<2, 1>(0, 0);
@@ -276,7 +276,7 @@ void pulse_analysis_solver::create_initial_condition_matrices(Eigen::MatrixXd& m
 		nodeinitialVelocityMatrix.setZero();
 
 		nodeinitialVelocityMatrix.coeffRef(0, 0) = inlc.inl_velocity_x;
-		nodeinitialVelocityMatrix.coeffRef(1, 0) = inlc.inl_velocity_y;
+		nodeinitialVelocityMatrix.coeffRef(1, 0) = (-1.0) * inlc.inl_velocity_y;
 
 		// global initial velocity matrix
 		globalInitialVelocityMatrix.block<2, 1>(n_id * 2, 0) += nodeinitialVelocityMatrix.block<2, 1>(0, 0);
