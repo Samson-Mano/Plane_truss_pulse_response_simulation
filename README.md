@@ -65,7 +65,7 @@ Here are some screenshots of the Plane Truss Analysis and Visualization Tool in 
 ![Modal Analysis](Images/modal_analysis.gif)
 *Modal analysis*
 
-![Pulse Analysis](Images/pulse_response_analysis.gif)
+![Pulse Analysis](Images/pulse_response_analysis_result.gif)
 *Pulse analysis*
 
 ## Dependencies
