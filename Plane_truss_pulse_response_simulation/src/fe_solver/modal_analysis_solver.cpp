@@ -50,6 +50,8 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	}
 
 	//____________________________________________
+	Eigen::initParallel();  // Initialize Eigen's thread pool
+
 	stopwatch.start();
 	std::stringstream stopwatch_elapsed_str;
 	stopwatch_elapsed_str << std::fixed << std::setprecision(6);
@@ -236,7 +238,7 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 
 
 	// Compute the eigenvalues and eigenvectors
-	Eigen::EigenSolver<Eigen::MatrixXd> eigenSolver(Z_matrix);
+	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigenSolver(Z_matrix);
 
 	if (eigenSolver.info() != Eigen::Success) {
 		// Eigenvalue problem failed to converge
@@ -250,8 +252,8 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 	std::cout << "Eigen value problem solved at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	// Get the eigenvalues and eigenvectors
-	Eigen::VectorXd eigenvalues = eigenSolver.eigenvalues().real(); // Real part of eigenvalues
-	Eigen::MatrixXd eigenvectors_reduced = L_inv_matrix.transpose() * eigenSolver.eigenvectors().real(); // Real part of eigenvectors
+	Eigen::VectorXd eigenvalues = eigenSolver.eigenvalues(); // Eigenvalues
+	Eigen::MatrixXd eigenvectors_reduced = L_inv_matrix.transpose() * eigenSolver.eigenvectors(); // Eigenvectors
 
 	// sort the eigen value and eigen vector (ascending)
 	sort_eigen_values_vectors(eigenvalues, eigenvectors_reduced, reducedDOF);
@@ -1162,6 +1164,9 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 
 	//___________________________________________________________________________________________________________
 	// Add to the result nodes
+	// Create a matrix to hold the vector lengths of modal displacements
+	Eigen::MatrixXd modal_displ_matrix(modal_results.number_of_modes, model_nodes.nodeMap.size());
+
 	for (auto& nd_m : model_nodes.nodeMap)
 	{
 		node_id = nd_m.first;
@@ -1175,6 +1180,12 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 			// get the appropriate modal displacement of this particular node
 			glm::vec2 modal_displ = glm::vec2(globalEigenVector_transformed((matrix_index * 2) + 0, i),
 				globalEigenVector_transformed((matrix_index * 2) + 1, i));
+
+			// Calculate the vector length of the modal displacement
+			double vector_length_squared = (modal_displ.x * modal_displ.x) + (modal_displ.y * modal_displ.y);
+
+			// Populate the matrix entry
+			modal_displ_matrix(i, matrix_index) = vector_length_squared;
 
 			// add to modal result of this node
 			node_modal_displ.insert({ i,modal_displ });
@@ -1209,44 +1220,21 @@ void modal_analysis_solver::map_modal_analysis_results(const nodes_list_store& m
 	std::unordered_map<int, double> max_node_displ;
 	std::unordered_map<int, double> min_node_displ;
 
+	// Find the maximum and minimum of the modal displacement
+	Eigen::VectorXd max_values_per_row = modal_displ_matrix.rowwise().maxCoeff();
+	Eigen::VectorXd min_values_per_row = modal_displ_matrix.rowwise().minCoeff();
+
 	for (int i = 0; i < modal_results.number_of_modes; i++)
 	{
-		// Go through all the line points at this particular mode
-		double max_displ = 0.0;
-		double min_displ = INT32_MAX;
-
-		for (auto& nd_m : modal_result_nodes.modal_nodeMap)
-		{
-			modal_node_store nd = nd_m.second;
-			// loop through all the mode node points
-			glm::vec2 nd_pt = nd.node_modal_displ[i];
-
-			double pt_displacement = std::abs(std::sqrt((nd_pt.x * nd_pt.x) + (nd_pt.y * nd_pt.y)));
-			// Check all the point
-			// Maximum
-			if (max_displ < pt_displacement)
-			{
-				// pt1
-				max_displ = pt_displacement;
-			}
-			//____________________________________________________________________________________________
-			// Minimum
-			if (min_displ > pt_displacement)
-			{
-				// pt1
-				min_displ = pt_displacement;
-			}
-		}
-
 		// Add to the maximum displacement of this mode
-		max_node_displ[i] = max_displ;
-		min_node_displ[i] = min_displ;
+		max_node_displ[i] = std::sqrt(max_values_per_row(i));
+		min_node_displ[i] = std::sqrt(min_values_per_row(i));
 	}
 
 	stopwatch_elapsed_str.str("");
 	stopwatch_elapsed_str.clear();
 	stopwatch_elapsed_str << stopwatch.elapsed();
-	std::cout << "maximum and minimum modal displacement found at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
+	std::cout << "Maximum and minimum modal displacement found at " << stopwatch_elapsed_str.str() << " secs" << std::endl;
 
 	// Set the maximum modal displacement
 	modal_result_nodes.max_node_displ.clear();

@@ -24,6 +24,12 @@
 #pragma warning (disable : 26813)
 #pragma warning (disable : 26454)
 
+// Optimization for Eigen Library
+// 1) OpenMP (Yes (/openmp)
+//	 Solution Explorer->Configuration Properties -> C/C++ -> Language -> Open MP Support
+// 2) For -march=native, choose "AVX2" or the latest supported instruction set.
+//   Solution Explorer->Configuration Properties -> C/C++ -> Code Generation -> Enable Enhanced Instruction Set 
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 // Define the sparse matrix type for the reduced global stiffness matrix
