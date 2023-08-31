@@ -33,7 +33,7 @@
 #include "modal_result_objects/modal_nodes_list_store.h"
 #include "modal_result_objects/modal_elementline_store.h"
 
-// FE Results Result Objects Pulse response
+// FE Result Objects Pulse response
 #include "pulse_result_objects/pulse_analysis_result_store.h"
 #include "pulse_result_objects/pulse_elementline_store.h"
 #include "pulse_result_objects/pulse_nodes_list_store.h"

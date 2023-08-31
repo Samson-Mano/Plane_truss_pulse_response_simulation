@@ -9,7 +9,7 @@
 #include "../geometry_store/fe_objects/nodeload_list_store.h"
 #include "../geometry_store/fe_objects/nodeinlcond_list_store.h"
 
-// FE Results Freq Analysis
+// FE Results Analysis
 #include "../geometry_store/pulse_result_objects/pulse_analysis_result_store.h"
 #include "../geometry_store/pulse_result_objects/pulse_nodes_list_store.h"
 #include "../geometry_store/pulse_result_objects/pulse_elementline_store.h"
