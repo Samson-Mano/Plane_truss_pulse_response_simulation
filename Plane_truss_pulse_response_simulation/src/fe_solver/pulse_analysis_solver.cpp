@@ -148,7 +148,7 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 			}
 
 			// Add to the modal displ matrix
-			displ_ampl_RespMatrix_reduced_b4eig_trans.coeffRef(i, 0) = displ_resp_initial + displ_resp_force ;
+			displ_ampl_RespMatrix_reduced_b4eig_trans.coeffRef(i, 0) = displ_resp_initial + displ_resp_force;
 		}
 
 		// Apply modal de-transformation
@@ -174,7 +174,7 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 
 		displ_ampl_RespMatrix = md_solver.globalSupportInclinationMatrix * displ_ampl_RespMatrix_b4supp_trans;
 
-		
+
 		//// Print the displacement response matrix
 		//temp_displ_str.str("");
 		//temp_displ_str.clear();
@@ -186,7 +186,7 @@ void pulse_analysis_solver::pulse_analysis_start(const nodes_list_store& model_n
 		//	temp_displ_str << ","<< displ_ampl_RespMatrix(i,0);
 		//}
 		//temp_output_file << temp_displ_str.str() << std::endl;
-		
+
 
 		// Store the results to node results
 		for (auto& nd_m : model_nodes.nodeMap)
@@ -507,8 +507,8 @@ void pulse_analysis_solver::get_steady_state_pulse_soln(double& steady_state_dis
 			else
 			{
 				// Normal case
-				double const1 = m_pi/ (modal_omega_n * t_d);
-				double const2 = 1.0 - std::pow(const1,2);
+				double const1 = m_pi / (modal_omega_n * t_d);
+				double const2 = 1.0 - std::pow(const1, 2);
 				double k_fact = (modal_force_ampl / modal_stiff) * (1 / const2);
 				steady_state_displ_resp = k_fact * (std::sin((m_pi / t_d) * t_at) - (const1 * std::sin(modal_omega_n * t_at)));
 			}
@@ -526,7 +526,7 @@ void pulse_analysis_solver::get_steady_state_pulse_soln(double& steady_state_dis
 			{
 				// Normal case
 				double const1 = m_pi / (modal_omega_n * t_d);
-				double const2 = std::pow(const1, 2)-1.0;
+				double const2 = std::pow(const1, 2) - 1.0;
 				double k_fact = (modal_force_ampl / modal_stiff) * ((2 * const1) / const2) * std::cos(modal_omega_n * t_d * 0.5);
 				steady_state_displ_resp = k_fact * std::sin(modal_omega_n * (t_at - (t_d * 0.5)));
 			}
@@ -616,28 +616,20 @@ void pulse_analysis_solver::map_pulse_analysis_results(pulse_analysis_result_sto
 			// Point 1 displacement
 			for (auto& pt1 : h_ln.pt1_modal_displ)
 			{
-				double displ1 = std::sqrt(std::pow(pt1.x, 2) + std::pow(pt1.y, 2));
-
-				if (displ1 > maximum_displacement)
-				{
-					maximum_displacement = displ1;
-				}
+				double displ1 = std::pow(pt1.x, 2) + std::pow(pt1.y, 2);
+				maximum_displacement = std::max(maximum_displacement, displ1);
 			}
 
 			// Point 2 displacement
 			for (auto& pt2 : h_ln.pt2_modal_displ)
 			{
-				double displ2 = std::sqrt(std::pow(pt2.x, 2) + std::pow(pt2.y, 2));
-
-				if (displ2 > maximum_displacement)
-				{
-					maximum_displacement = displ2;
-				}
+				double displ2 = std::pow(pt2.x, 2) + std::pow(pt2.y, 2);
+				maximum_displacement = std::max(maximum_displacement, displ2);
 			}
 		}
 	}
 
 	// Set the maximim displacement
-	pulse_result_nodes.max_node_displ = maximum_displacement;
-	pulse_result_lineelements.max_line_displ = maximum_displacement;
+	pulse_result_nodes.max_node_displ = std::sqrt(maximum_displacement);
+	pulse_result_lineelements.max_line_displ = std::sqrt(maximum_displacement);
 }
