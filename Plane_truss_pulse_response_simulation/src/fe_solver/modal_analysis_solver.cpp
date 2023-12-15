@@ -180,7 +180,9 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 
 	if (llt.info() != Eigen::Success) {
 		// Cholesky decomposition failed
+		std::cout << "Cholesky decomposition failed !!!!" << std::endl;
 		output_file << "Cholesky decomposition failed !!!!" << std::endl;
+		output_file.close();
 	}
 
 	// Get the lower triangular matrix L
@@ -242,7 +244,9 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 
 	if (eigenSolver.info() != Eigen::Success) {
 		// Eigenvalue problem failed to converge
+		std::cout << "Eigenvalue problem failed to converge !!!!! " << std::endl;
 		output_file << "Eigenvalue problem failed to converge !!!!! " << std::endl;
+		output_file.close();
 		return;
 	}
 
@@ -591,8 +595,8 @@ void modal_analysis_solver::get_global_pointmass_matrix(Eigen::MatrixXd& globalP
 		else
 		{
 			// Nodes doesnt have point mass
-			globalPointMassMatrix((nd_map * 2) + 0, (nd_map * 2) + 0) = 0.0;
-			globalPointMassMatrix((nd_map * 2) + 1, (nd_map * 2) + 1) = 0.0;
+			globalPointMassMatrix((nd_map * 2) + 0, (nd_map * 2) + 0) = smallValue;
+			globalPointMassMatrix((nd_map * 2) + 1, (nd_map * 2) + 1) = smallValue;
 		}
 	}
 

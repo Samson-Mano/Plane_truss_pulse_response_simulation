@@ -40,7 +40,8 @@ class modal_analysis_solver
 {
 public:
 	const double m_pi = 3.14159265358979323846;
-	bool print_matrix = false;
+	const double smallValue = 1E-12;
+	bool print_matrix = true;
 	Stopwatch_events stopwatch;
 
 	int numDOF = 0;
