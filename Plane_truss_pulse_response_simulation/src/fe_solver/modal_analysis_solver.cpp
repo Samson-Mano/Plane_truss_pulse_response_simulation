@@ -183,6 +183,7 @@ void modal_analysis_solver::modal_analysis_start(const nodes_list_store& model_n
 		std::cout << "Cholesky decomposition failed !!!!" << std::endl;
 		output_file << "Cholesky decomposition failed !!!!" << std::endl;
 		output_file.close();
+		return;
 	}
 
 	// Get the lower triangular matrix L
