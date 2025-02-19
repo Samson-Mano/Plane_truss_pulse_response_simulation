@@ -82,7 +82,7 @@ def mdof_simple_harmonic_motion_analytical(mass_M, stiff_K, inl_displ, inl_velo,
     norm_stiff = normalized_mode_shapes.T @ stiff_K @ normalized_mode_shapes 
 
     # Generate time values for the simulation
-    t_count = 101 # time step count
+    t_count = 1001 # time step count
     time_values = np.linspace(time_range[0], time_range[1], t_count)
     t_step = (time_range[1] - time_range[0])/ t_count # time step
 
@@ -286,24 +286,24 @@ def mdof_linear_acceleration_method(mass_M, stiff_K, inl_displ, inl_velo,total_f
 
 # Usage:
 # Mass
-mass_M1 = 200000.0 # Mass M1
-mass_M2 = 100000.0 # Mass M2
+mass_M1 = 10.0 # Mass M1
+mass_M2 = 8.0 # Mass M2
 mass_M = np.array([[mass_M1,0.0],
                    [0.0,mass_M2]])
 
 # Stiffness
-stiff_K1 = 621000 #4.0 * 2.0 * (math.pi**2)  # Stiffness K1
-stiff_K2 = 414000 #8.0 * 2.0 * (math.pi**2)  # Stiffness K2
-stiff_K3 = 1242010 #1.0 * 2.0 * (math.pi**2)  # Stiffness K2
+stiff_K1 = 1000 #4.0 * 2.0 * (math.pi**2)  # Stiffness K1
+stiff_K2 = 1000 #8.0 * 2.0 * (math.pi**2)  # Stiffness K2
+stiff_K3 = 0 #1.0 * 2.0 * (math.pi**2)  # Stiffness K2
 stiff_K = np.array([[(stiff_K1+stiff_K2),(-stiff_K2)],
                     [(-stiff_K2),(stiff_K2+stiff_K3)]])
 
 
 # Initial condition
-inl_displ_1 = 10.0 # initial displacement Node 1
+inl_displ_1 = 0.0 # initial displacement Node 1
 inl_velo_1 = 0.0 # initial velocity Node 1
 #_______________________________________________
-inl_displ_2 = -20.0 # initial displacement Node 2
+inl_displ_2 = 0.0 # initial displacement Node 2
 inl_velo_2 = 0.0 # initial velocity Node 2
 
 inl_displ = np.array([[inl_displ_1],
@@ -318,16 +318,16 @@ time_range = (0, 10)  # Time range for the simulation (start and end time)
 # Create an array of pulse forces with each element as (force_amplitude, start_time, end_time)
 # Pulse force list 1
 pulse_force_list_1 = [
-    (0.0, 5.0, 7.0),
-    (20000000.0, 0.0, 3.0),
-    (0.0, 8.0, 9.5)
+    #(0.0, 5.0, 7.0),
+    (1000.0, 0.0, 0.25)
+    #(0.0, 8.0, 9.5)
 ]
 
 # Pulse force list 2
 pulse_force_list_2 = [
-    (0.0, 1.0, 2.5),
-    (-25000000.0, 6.5, 8.5),
-    (0.0, 2.0, 4.5)
+    # (0.0, 1.0, 2.5),
+    (0.0, 6.5, 8.5)
+    # (0.0, 2.0, 4.5)
 ]
 
 pulse_force_list = [pulse_force_list_1,
